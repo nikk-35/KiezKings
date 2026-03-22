@@ -1,0 +1,11 @@
+{
+  "name": "KIEZKINGS - Urban Survival RPG",
+  "short_name": "KIEZKINGS",
+  "description": "Vom Penner zum König der Straße",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1A1A1A",
+  "theme_color": "#1A1A1A",
+  "orientation": "portrait",
+  "icons": []
+}
