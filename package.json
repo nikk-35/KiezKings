@@ -1,26 +1,16 @@
 {
-  "name": "kiezkings",
-  "version": "0.1.0",
-  "private": true,
+  "name": "kiezkings-static",
+  "version": "1.0.0",
+  "description": "KIEZKINGS - Urban Survival Mobile Game",
+  "main": "index.html",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
+    "build": "echo 'Static build complete'",
+    "start": "echo 'Static site ready'"
   },
-  "dependencies": {
-    "next": "16.2.1",
-    "react": "19.2.4",
-    "react-dom": "19.2.4"
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nikk-35/KiezKings.git"
   },
-  "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "16.2.1",
-    "tailwindcss": "^4",
-    "typescript": "^5"
-  }
+  "keywords": ["game", "urban", "survival", "german", "mobile"],
+  "author": "KIEZKINGS Team"
 }

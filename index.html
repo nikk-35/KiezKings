@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KIEZKINGS - Urban Survival Game</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            color: white;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .container {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .header {
+            padding: 20px;
+            text-align: center;
+            border-bottom: 2px solid #FF6B35;
+        }
+        .logo {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #FF6B35;
+            text-shadow: 0 0 20px rgba(255, 107, 53, 0.5);
+        }
+        .subtitle {
+            color: #888;
+            margin-top: 5px;
+        }
+        .game-area {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .stats-bar {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .stat {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-name {
+            font-size: 0.8rem;
+            color: #ccc;
+            margin-bottom: 5px;
+        }
+        .stat-value {
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+        .location-info {
+            background: rgba(255, 107, 53, 0.2);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #FF6B35;
+        }
+        .actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .action-btn {
+            background: linear-gradient(45deg, #FF6B35, #FF8C42);
+            border: none;
+            padding: 15px;
+            border-radius: 10px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .action-btn:hover {
+            transform: scale(1.05);
+        }
+        .action-btn:active {
+            transform: scale(0.95);
+        }
+        .bottom-nav {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            border-top: 2px solid #FF6B35;
+            background: #1a1a1a;
+        }
+        .nav-btn {
+            padding: 15px 10px;
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .nav-btn.active {
+            color: #FF6B35;
+            background: rgba(255, 107, 53, 0.1);
+        }
+        .game-log {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 15px;
+            border-radius: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-size: 0.9rem;
+        }
+        .log-entry {
+            margin-bottom: 8px;
+            opacity: 0.8;
+        }
+        .success { color: #4CAF50; }
+        .warning { color: #FF9800; }
+        .danger { color: #f44336; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">KIEZKINGS</div>
+            <div class="subtitle">Urban Survival Game</div>
+        </div>
+        
+        <div class="game-area">
+            <div class="stats-bar">
+                <div class="stat">
+                    <div class="stat-name">Hunger</div>
+                    <div class="stat-value" id="hunger">75</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-name">Durst</div>
+                    <div class="stat-value" id="durst">60</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-name">Gesundheit</div>
+                    <div class="stat-value" id="gesundheit">90</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-name">Energie</div>
+                    <div class="stat-value" id="energie">80</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-name">Respekt</div>
+                    <div class="stat-value" id="respekt">15</div>
+                </div>
+            </div>
+            
+            <div class="location-info">
+                <h3 id="location-name">🚉 Bahnhof</h3>
+                <p id="location-desc">Du stehst am Hauptbahnhof. Viele Menschen, Touristen und ein paar Penner wie du. Die Polizei patrouilliert regelmäßig.</p>
+            </div>
+            
+            <div class="actions">
+                <button class="action-btn" onclick="doAction('betteln')">🤲 Betteln</button>
+                <button class="action-btn" onclick="doAction('flaschen')">🍾 Pfandflaschen</button>
+                <button class="action-btn" onclick="doAction('schlafen')">😴 Schlafen</button>
+                <button class="action-btn" onclick="doAction('klauen')">🥷 Klauen</button>
+            </div>
+            
+            <div class="game-log" id="game-log">
+                <div class="log-entry">🎮 Willkommen in KIEZKINGS!</div>
+                <div class="log-entry">📍 Du befindest dich am Bahnhof</div>
+                <div class="log-entry success">✅ Game erfolgreich geladen</div>
+            </div>
+        </div>
+        
+        <div class="bottom-nav">
+            <button class="nav-btn active" onclick="switchTab('strasse')">🏙️<br>Straße</button>
+            <button class="nav-btn" onclick="switchTab('gang')">👥<br>Gang</button>
+            <button class="nav-btn" onclick="switchTab('profil')">👤<br>Profil</button>
+            <button class="nav-btn" onclick="switchTab('chat')">💬<br>Chat</button>
+            <button class="nav-btn" onclick="switchTab('shop')">🏪<br>Shop</button>
+        </div>
+    </div>
+
+    <script>
+        const stats = {
+            hunger: 75,
+            durst: 60, 
+            gesundheit: 90,
+            energie: 80,
+            respekt: 15
+        };
+
+        const locations = {
+            bahnhof: { name: "🚉 Bahnhof", desc: "Viele Menschen, Touristen. Polizei patrouilliert." },
+            innenstadt: { name: "🏢 Innenstadt", desc: "Reiche Leute, teure Geschäfte. Hier lässt sich gut betteln." },
+            park: { name: "🌳 Park", desc: "Ruhiger Ort zum Schlafen. Aber auch Dealer und Probleme." },
+            industrie: { name: "🏭 Industriegebiet", desc: "Schwere Arbeit, gutes Geld. Rauer Umgang." },
+            rotlicht: { name: "🔴 Rotlicht-Viertel", desc: "24/7 Action. Gefährlich aber profitabel." }
+        };
+
+        let currentLocation = 'bahnhof';
+        let money = 10;
+
+        function updateStats() {
+            Object.keys(stats).forEach(stat => {
+                document.getElementById(stat).textContent = stats[stat];
+                
+                if (stats[stat] <= 20) {
+                    document.getElementById(stat).style.color = '#f44336';
+                } else if (stats[stat] <= 50) {
+                    document.getElementById(stat).style.color = '#FF9800';
+                } else {
+                    document.getElementById(stat).style.color = '#4CAF50';
+                }
+            });
+        }
+
+        function addLogEntry(text, type = '') {
+            const log = document.getElementById('game-log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = text;
+            log.appendChild(entry);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function doAction(action) {
+            if (stats.energie <= 10) {
+                addLogEntry('❌ Du bist zu müde für Aktionen!', 'danger');
+                return;
+            }
+
+            stats.energie -= 10;
+            
+            switch(action) {
+                case 'betteln':
+                    const earned = Math.floor(Math.random() * 15) + 1;
+                    money += earned;
+                    stats.hunger -= 5;
+                    stats.durst -= 8;
+                    addLogEntry(`🤲 Du bettelst und verdienst ${earned}€`, 'success');
+                    break;
+                    
+                case 'flaschen':
+                    const bottles = Math.floor(Math.random() * 8) + 2;
+                    const bottleMoney = bottles * 0.25;
+                    money += bottleMoney;
+                    stats.hunger -= 3;
+                    stats.durst -= 5;
+                    addLogEntry(`🍾 Du sammelst ${bottles} Flaschen (${bottleMoney.toFixed(2)}€)`, 'success');
+                    break;
+                    
+                case 'schlafen':
+                    if (currentLocation === 'park') {
+                        stats.energie += 30;
+                        stats.gesundheit += 10;
+                        addLogEntry('😴 Du schläfst im Park und erholst dich', 'success');
+                    } else {
+                        stats.energie += 15;
+                        addLogEntry('😴 Du machst ein Nickerchen', 'warning');
+                    }
+                    break;
+                    
+                case 'klauen':
+                    if (Math.random() < 0.7) {
+                        const stolen = Math.floor(Math.random() * 25) + 5;
+                        money += stolen;
+                        stats.respekt += 2;
+                        addLogEntry(`🥷 Du klaust erfolgreich ${stolen}€!`, 'success');
+                    } else {
+                        stats.gesundheit -= 20;
+                        stats.respekt -= 5;
+                        addLogEntry('🚔 Erwischt! Die Polizei schlägt dich!', 'danger');
+                    }
+                    break;
+            }
+            
+            updateStats();
+            
+            // Stat decay
+            setTimeout(() => {
+                stats.hunger -= Math.floor(Math.random() * 3) + 1;
+                stats.durst -= Math.floor(Math.random() * 4) + 1;
+                stats.gesundheit -= Math.floor(Math.random() * 2);
+                
+                if (stats.hunger <= 0 || stats.durst <= 0 || stats.gesundheit <= 0) {
+                    addLogEntry('💀 GAME OVER! Du bist gestorben!', 'danger');
+                    setTimeout(() => location.reload(), 3000);
+                }
+                
+                updateStats();
+            }, 2000);
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            switch(tab) {
+                case 'gang':
+                    addLogEntry('👥 Gang-Feature kommt bald!', 'warning');
+                    break;
+                case 'profil':
+                    addLogEntry(`👤 Geld: ${money.toFixed(2)}€ | Level: Anfänger`, 'success');
+                    break;
+                case 'chat':
+                    addLogEntry('💬 [Kiosk-Mehmet]: Ey, alles klar Bruder?');
+                    addLogEntry('💬 [Alte-Helga]: Habt ihr was zu essen?');
+                    break;
+                case 'shop':
+                    addLogEntry('🏪 Shop: Döner 3€, Bier 2€, Handy 50€', 'warning');
+                    break;
+            }
+        }
+
+        // Initialize
+        updateStats();
+        addLogEntry(`💰 Du hast ${money}€ in der Tasche`);
+        
+        // Auto stat decay
+        setInterval(() => {
+            stats.hunger = Math.max(0, stats.hunger - 1);
+            stats.durst = Math.max(0, stats.durst - 1);
+            updateStats();
+        }, 10000);
+    </script>
+</body>
+</html>
