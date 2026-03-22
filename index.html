@@ -1,2138 +1,605 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
-<title>KIEZKINGS - Berlin Street Survival</title>
-<style>
-*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-body{overflow:hidden;background:#1a1a1a;font-family:'Courier New',monospace;touch-action:none;user-select:none;-webkit-user-select:none;position:fixed;width:100%;height:100%}
-canvas{display:block;width:100%!important;height:100%!important}
-
-/* Loading Screen */
-#loading{position:fixed;inset:0;background:#111;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:1000;transition:opacity 0.5s}
-#loading h1{color:#e8c547;font-size:clamp(2rem,6vw,4rem);letter-spacing:0.3em;text-transform:uppercase;margin-bottom:0.5em;text-shadow:0 0 20px rgba(232,197,71,0.5)}
-#loading .subtitle{color:#888;font-size:clamp(0.7rem,2vw,1rem);letter-spacing:0.5em;margin-bottom:2em}
-#loading .bar-bg{width:60%;max-width:400px;height:4px;background:#333;border-radius:2px;overflow:hidden}
-#loading .bar-fill{height:100%;width:0%;background:linear-gradient(90deg,#e8c547,#fff);transition:width 0.3s}
-#loading .hint{color:#555;font-size:clamp(0.6rem,1.5vw,0.8rem);margin-top:2em;text-align:center;padding:0 1em}
-
-/* Start Screen */
-#startScreen{position:fixed;inset:0;background:rgba(0,0,0,0.85);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:999;cursor:pointer}
-#startScreen h1{color:#e8c547;font-size:clamp(2.5rem,7vw,5rem);letter-spacing:0.2em;margin-bottom:0.2em;text-shadow:0 0 30px rgba(232,197,71,0.4)}
-#startScreen .tag{color:#aaa;font-size:clamp(0.8rem,2vw,1.1rem);letter-spacing:0.4em;margin-bottom:2em}
-#startScreen .tap{color:#e8c547;font-size:clamp(0.9rem,2.5vw,1.2rem);animation:pulse 2s infinite;letter-spacing:0.2em}
-@keyframes pulse{0%,100%{opacity:0.4}50%{opacity:1}}
-#startScreen .controls-info{color:#666;font-size:clamp(0.6rem,1.5vw,0.75rem);margin-top:2em;text-align:center;line-height:1.8}
-
-/* HUD */
-#hud{position:fixed;top:0;left:0;right:0;pointer-events:none;z-index:100;padding:clamp(8px,2vw,15px)}
-.stats-bar{display:flex;gap:clamp(4px,1vw,8px);flex-wrap:wrap;justify-content:center;max-width:500px;margin:0 auto}
-.stat{flex:1;min-width:70px;max-width:120px;background:rgba(0,0,0,0.7);border:1px solid rgba(255,255,255,0.15);border-radius:4px;padding:clamp(3px,0.8vw,6px) clamp(5px,1vw,8px)}
-.stat-label{font-size:clamp(0.5rem,1.2vw,0.6rem);color:#999;letter-spacing:0.1em;text-transform:uppercase;display:flex;align-items:center;gap:4px}
-.stat-label span{font-size:clamp(0.6rem,1.5vw,0.8rem)}
-.stat-bar-bg{height:clamp(3px,0.8vw,5px);background:#333;border-radius:2px;margin-top:2px;overflow:hidden}
-.stat-bar-fill{height:100%;border-radius:2px;transition:width 0.5s ease}
-
-/* Crosshair */
-#crosshair{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:101;pointer-events:none}
-#crosshair .dot{width:4px;height:4px;background:rgba(255,255,255,0.7);border-radius:50%}
-#crosshair.active .dot{background:#e8c547;box-shadow:0 0 8px rgba(232,197,71,0.6)}
-
-/* Interaction Prompt */
-#interactPrompt{position:fixed;top:55%;left:50%;transform:translate(-50%,0);z-index:102;pointer-events:none;opacity:0;transition:opacity 0.2s;text-align:center}
-#interactPrompt .key{display:inline-block;background:rgba(232,197,71,0.2);border:1px solid #e8c547;color:#e8c547;padding:3px 12px;border-radius:4px;font-size:clamp(0.7rem,1.8vw,0.9rem);letter-spacing:0.1em}
-#interactPrompt .label{color:#ccc;font-size:clamp(0.6rem,1.5vw,0.75rem);margin-top:4px}
-
-/* Inventory */
-#inventory{position:fixed;bottom:clamp(60px,15vw,90px);left:50%;transform:translateX(-50%);z-index:100;display:flex;gap:4px;pointer-events:none}
-.inv-slot{width:clamp(36px,9vw,48px);height:clamp(36px,9vw,48px);background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.15);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:clamp(1rem,3vw,1.4rem);position:relative}
-.inv-slot .count{position:absolute;bottom:1px;right:3px;font-size:clamp(0.45rem,1.2vw,0.55rem);color:#e8c547}
-
-/* Message Log */
-#msgLog{position:fixed;bottom:clamp(100px,22vw,140px);left:50%;transform:translateX(-50%);z-index:100;pointer-events:none;text-align:center;width:90%;max-width:400px}
-.msg{color:#e8c547;font-size:clamp(0.65rem,1.6vw,0.8rem);padding:3px 0;opacity:0;animation:msgIn 0.3s forwards;text-shadow:0 1px 3px rgba(0,0,0,0.8)}
-@keyframes msgIn{to{opacity:1}}
-
-/* Touch Controls */
-#touchControls{position:fixed;bottom:0;left:0;right:0;z-index:200;pointer-events:none;display:none;padding:clamp(10px,3vw,20px)}
-#joystickArea{position:absolute;bottom:clamp(15px,4vw,30px);left:clamp(15px,4vw,30px);width:clamp(100px,25vw,140px);height:clamp(100px,25vw,140px);pointer-events:auto}
-#joystickBase{width:100%;height:100%;border-radius:50%;background:rgba(255,255,255,0.08);border:2px solid rgba(255,255,255,0.15);position:relative}
-#joystickThumb{width:40%;height:40%;border-radius:50%;background:rgba(255,255,255,0.25);border:1px solid rgba(255,255,255,0.3);position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);transition:none}
-#actionBtns{position:absolute;bottom:clamp(15px,4vw,30px);right:clamp(15px,4vw,30px);display:flex;flex-direction:column;gap:8px;pointer-events:auto}
-.action-btn{width:clamp(48px,12vw,60px);height:clamp(48px,12vw,60px);border-radius:50%;background:rgba(255,255,255,0.08);border:2px solid rgba(255,255,255,0.2);color:#fff;font-size:clamp(0.6rem,1.5vw,0.7rem);display:flex;align-items:center;justify-content:center;letter-spacing:0.05em;text-transform:uppercase}
-.action-btn.interact{border-color:rgba(232,197,71,0.4);color:#e8c547}
-#sprintBtn{position:absolute;bottom:clamp(15px,4vw,30px);left:50%;transform:translateX(-50%);pointer-events:auto}
-
-/* Day/Night & Weather */
-#timeDisplay{position:fixed;top:clamp(8px,2vw,15px);right:clamp(8px,2vw,15px);z-index:100;pointer-events:none;text-align:right}
-#timeDisplay .time{color:#e8c547;font-size:clamp(0.8rem,2vw,1rem);letter-spacing:0.1em}
-#timeDisplay .day{color:#888;font-size:clamp(0.5rem,1.2vw,0.6rem);letter-spacing:0.15em;text-transform:uppercase}
-
-/* Notification */
-#notification{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:300;background:rgba(0,0,0,0.9);border:1px solid #e8c547;border-radius:8px;padding:clamp(15px,4vw,25px);text-align:center;display:none;pointer-events:auto;max-width:90%;width:350px}
-#notification h3{color:#e8c547;font-size:clamp(0.9rem,2.5vw,1.1rem);margin-bottom:0.5em;letter-spacing:0.1em}
-#notification p{color:#ccc;font-size:clamp(0.7rem,1.8vw,0.85rem);line-height:1.5;margin-bottom:1em}
-#notification .choices{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
-#notification .choice-btn{background:rgba(232,197,71,0.15);border:1px solid rgba(232,197,71,0.4);color:#e8c547;padding:8px 16px;border-radius:4px;cursor:pointer;font-family:inherit;font-size:clamp(0.65rem,1.6vw,0.8rem);letter-spacing:0.05em}
-#notification .choice-btn:active{background:rgba(232,197,71,0.3)}
-
-/* Minimap */
-#minimap{position:fixed;top:clamp(55px,12vw,80px);right:clamp(8px,2vw,15px);z-index:100;pointer-events:none}
-#minimapCanvas{border:1px solid rgba(255,255,255,0.15);border-radius:4px;background:rgba(0,0,0,0.6)}
-
-/* Hand overlay */
-#handOverlay{position:fixed;bottom:-5%;right:-5%;z-index:99;pointer-events:none;opacity:0.7}
-
-/* Death Screen */
-#deathScreen{position:fixed;inset:0;background:rgba(0,0,0,0);z-index:500;display:none;flex-direction:column;align-items:center;justify-content:center;transition:background 1s}
-#deathScreen.active{background:rgba(80,0,0,0.85)}
-#deathScreen h1{color:#ff3333;font-size:clamp(2rem,6vw,3.5rem);letter-spacing:0.3em;opacity:0;transition:opacity 1s 0.5s}
-#deathScreen.active h1{opacity:1}
-#deathScreen .restart{color:#999;font-size:clamp(0.8rem,2vw,1rem);margin-top:1em;opacity:0;transition:opacity 1s 1.5s;cursor:pointer}
-#deathScreen.active .restart{opacity:1}
-
-/* Späti Shop UI */
-#shopUI{position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:400;display:none;flex-direction:column;align-items:center;justify-content:center}
-#shopUI h2{color:#e8c547;font-size:clamp(1.2rem,3vw,1.6rem);letter-spacing:0.2em;margin-bottom:1em}
-#shopUI .shop-items{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;max-width:500px;padding:0 15px}
-.shop-item{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.15);border-radius:6px;padding:12px;width:clamp(120px,30vw,150px);text-align:center;cursor:pointer}
-.shop-item:active{background:rgba(232,197,71,0.1);border-color:#e8c547}
-.shop-item .emoji{font-size:1.8rem;margin-bottom:4px}
-.shop-item .name{color:#ccc;font-size:clamp(0.65rem,1.6vw,0.8rem)}
-.shop-item .price{color:#e8c547;font-size:clamp(0.6rem,1.4vw,0.7rem);margin-top:4px}
-.shop-item .effect{color:#888;font-size:clamp(0.5rem,1.2vw,0.6rem);margin-top:2px}
-#shopUI .close-shop{color:#999;font-size:clamp(0.7rem,1.8vw,0.85rem);margin-top:1.5em;cursor:pointer;letter-spacing:0.1em}
-
-/* Vignette */
-#vignette{position:fixed;inset:0;pointer-events:none;z-index:98;background:radial-gradient(ellipse at center,transparent 60%,rgba(0,0,0,0.4) 100%)}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>KIEZKINGS - Berlin Street Survival</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            overflow: hidden;
+            background: #000;
+            font-family: Arial, sans-serif;
+            color: white;
+            touch-action: none;
+            user-select: none;
+        }
+        canvas { width: 100vw; height: 100vh; display: block; }
+        
+        #ui {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 100;
+        }
+        
+        #stats {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid #FF6B35;
+            border-radius: 10px;
+            padding: 10px;
+            pointer-events: auto;
+            min-width: 250px;
+        }
+        
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+            font-size: 14px;
+        }
+        
+        .stat-bar {
+            width: 100px;
+            height: 8px;
+            background: #333;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-left: 10px;
+        }
+        
+        .stat-fill {
+            height: 100%;
+            transition: width 0.3s;
+        }
+        
+        .health { background: #e74c3c; }
+        .hunger { background: #f39c12; }
+        .warmth { background: #e67e22; }
+        .energy { background: #3498db; }
+        
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #fff;
+            font-size: 20px;
+            pointer-events: none;
+        }
+        
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            pointer-events: auto;
+        }
+        
+        .control-btn {
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid #FF6B35;
+            border-radius: 8px;
+            color: white;
+            padding: 12px 15px;
+            font-size: 12px;
+            cursor: pointer;
+            min-width: 70px;
+            text-align: center;
+        }
+        
+        .control-btn:active {
+            background: rgba(255, 107, 53, 0.3);
+        }
+        
+        #start-screen {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 200;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 30px;
+            border-radius: 15px;
+            border: 2px solid #FF6B35;
+        }
+        
+        #start-screen h1 {
+            color: #FF6B35;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        #start-btn {
+            background: linear-gradient(45deg, #FF6B35, #FF8C42);
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            color: white;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        
+        #movement-joystick {
+            position: absolute;
+            bottom: 80px;
+            left: 30px;
+            width: 120px;
+            height: 120px;
+            pointer-events: auto;
+            display: none;
+        }
+        
+        .joystick-outer {
+            width: 100%;
+            height: 100%;
+            border: 3px solid rgba(255, 107, 53, 0.5);
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.3);
+            position: relative;
+        }
+        
+        .joystick-inner {
+            width: 40%;
+            height: 40%;
+            background: #FF6B35;
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            transition: none;
+        }
+        
+        #instructions {
+            position: absolute;
+            top: 70%;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #aaa;
+            font-size: 14px;
+            text-align: center;
+            pointer-events: none;
+        }
+    </style>
 </head>
 <body>
-
-<div id="loading">
-  <h1>KIEZKINGS</h1>
-  <div class="subtitle">BERLIN STREET SURVIVAL</div>
-  <div class="bar-bg"><div class="bar-fill" id="loadBar"></div></div>
-  <div class="hint">Überlebe auf den Straßen von Berlin</div>
-</div>
-
-<div id="startScreen">
-  <h1>KIEZKINGS</h1>
-  <div class="tag">FIRST PERSON • BERLIN • SURVIVAL</div>
-  <div class="tap">▶ ANTIPPEN ZUM STARTEN ◀</div>
-  <div class="controls-info">
-    <span class="desktop-info">WASD Bewegung • Maus Umsehen • E Interaktion • SHIFT Sprint</span>
-    <span class="mobile-info">Joystick Bewegung • Wischen Umsehen • Tippen Interaktion</span>
-  </div>
-</div>
-
-<div id="hud">
-  <div class="stats-bar">
-    <div class="stat">
-      <div class="stat-label"><span>❤️</span> Leben</div>
-      <div class="stat-bar-bg"><div class="stat-bar-fill" id="healthBar" style="width:100%;background:#e74c3c"></div></div>
-    </div>
-    <div class="stat">
-      <div class="stat-label"><span>🍞</span> Hunger</div>
-      <div class="stat-bar-bg"><div class="stat-bar-fill" id="hungerBar" style="width:100%;background:#e8a547"></div></div>
-    </div>
-    <div class="stat">
-      <div class="stat-label"><span>🔥</span> Wärme</div>
-      <div class="stat-bar-bg"><div class="stat-bar-fill" id="warmthBar" style="width:100%;background:#3498db"></div></div>
-    </div>
-    <div class="stat">
-      <div class="stat-label"><span>⚡</span> Energie</div>
-      <div class="stat-bar-bg"><div class="stat-bar-fill" id="energyBar" style="width:100%;background:#2ecc71"></div></div>
-    </div>
-    <div class="stat">
-      <div class="stat-label"><span>💰</span> <span id="moneyDisplay">0.00€</span></div>
-      <div class="stat-bar-bg"><div class="stat-bar-fill" id="moneyBar" style="width:0%;background:#e8c547"></div></div>
-    </div>
-  </div>
-</div>
-
-<div id="crosshair"><div class="dot"></div></div>
-
-<div id="interactPrompt">
-  <div class="key" id="interactKey">E</div>
-  <div class="label" id="interactLabel"></div>
-</div>
-
-<div id="inventory"></div>
-<div id="msgLog"></div>
-
-<div id="timeDisplay">
-  <div class="time" id="gameTime">08:00</div>
-  <div class="day" id="gameDay">Tag 1</div>
-</div>
-
-<div id="minimap">
-  <canvas id="minimapCanvas" width="80" height="80"></canvas>
-</div>
-
-<div id="touchControls">
-  <div id="joystickArea">
-    <div id="joystickBase">
-      <div id="joystickThumb"></div>
-    </div>
-  </div>
-  <div id="actionBtns">
-    <div class="action-btn interact" id="touchInteract">E</div>
-    <div class="action-btn" id="touchSprint">🏃</div>
-  </div>
-</div>
-
-<div id="notification">
-  <h3 id="notifTitle"></h3>
-  <p id="notifText"></p>
-  <div class="choices" id="notifChoices"></div>
-</div>
-
-<div id="shopUI">
-  <h2>🏪 SPÄTI</h2>
-  <div class="shop-items" id="shopItems"></div>
-  <div class="close-shop" id="closeShop">[ ESC ] Verlassen</div>
-</div>
-
-<div id="deathScreen">
-  <h1>GAME OVER</h1>
-  <div class="restart">Antippen zum Neustarten</div>
-</div>
-
-<div id="vignette"></div>
-
-<script type="importmap">
-{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}
-</script>
-<script type="module">
-import * as THREE from 'three';
-
-// ============================================================
-// GAME STATE
-// ============================================================
-const G = {
-  started: false,
-  paused: false,
-  dead: false,
-  stats: { health: 100, hunger: 100, warmth: 100, energy: 100 },
-  money: 2.50,
-  inventory: [],
-  maxInventory: 6,
-  gameTime: 8 * 60, // minutes since midnight (start at 8:00)
-  gameDay: 1,
-  timeSpeed: 0.8, // game minutes per real second
-  interactTarget: null,
-  isMobile: false,
-  moveInput: { x: 0, z: 0 },
-  lookInput: { x: 0, y: 0 },
-  sprinting: false,
-  headBob: 0,
-  isPointerLocked: false,
-  playerPos: new THREE.Vector3(0, 1.7, 0),
-  playerVel: new THREE.Vector3(),
-  yaw: 0,
-  pitch: 0,
-  interactables: [],
-  npcs: [],
-  buildings: [],
-  collected: new Set(),
-  spawnTimers: {},
-  messages: [],
-  shopOpen: false,
-  notifOpen: false,
-  lastNPCEncounter: 0,
-  footstepPhase: 0,
-};
-
-// Mobile detection
-G.isMobile = /Android|iPhone|iPad|iPod|webOS/i.test(navigator.userAgent) || ('ontouchstart' in window && window.innerWidth < 1024);
-
-// ============================================================
-// TEXTURE GENERATOR
-// ============================================================
-function makeCanvas(w, h) {
-  const c = document.createElement('canvas');
-  c.width = w; c.height = h;
-  return { canvas: c, ctx: c.getContext('2d') };
-}
-
-function brickTexture(w = 256, h = 256, baseColor = '#8B4513') {
-  const { canvas, ctx } = makeCanvas(w, h);
-  // Base color with variation
-  ctx.fillStyle = baseColor;
-  ctx.fillRect(0, 0, w, h);
-  
-  const brickH = h / 8;
-  const brickW = w / 4;
-  const mortarW = 3;
-  
-  for (let row = 0; row < 8; row++) {
-    const offset = (row % 2) * (brickW / 2);
-    for (let col = -1; col < 5; col++) {
-      const x = col * brickW + offset;
-      const y = row * brickH;
-      
-      // Brick color variation
-      const r = parseInt(baseColor.slice(1, 3), 16) + (Math.random() * 30 - 15);
-      const g = parseInt(baseColor.slice(3, 5), 16) + (Math.random() * 20 - 10);
-      const b = parseInt(baseColor.slice(5, 7), 16) + (Math.random() * 15 - 7);
-      ctx.fillStyle = `rgb(${r|0},${g|0},${b|0})`;
-      ctx.fillRect(x + mortarW, y + mortarW, brickW - mortarW * 2, brickH - mortarW * 2);
-      
-      // Surface noise
-      for (let i = 0; i < 20; i++) {
-        const nx = x + mortarW + Math.random() * (brickW - mortarW * 2);
-        const ny = y + mortarW + Math.random() * (brickH - mortarW * 2);
-        ctx.fillStyle = `rgba(0,0,0,${Math.random() * 0.15})`;
-        ctx.fillRect(nx, ny, 2, 2);
-      }
-    }
-    // Mortar lines
-    ctx.fillStyle = '#9e9688';
-    ctx.fillRect(0, row * brickH, w, mortarW);
-  }
-  
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  return tex;
-}
-
-function concreteTexture(w = 256, h = 256) {
-  const { canvas, ctx } = makeCanvas(w, h);
-  ctx.fillStyle = '#a0998f';
-  ctx.fillRect(0, 0, w, h);
-  
-  for (let i = 0; i < 3000; i++) {
-    const x = Math.random() * w;
-    const y = Math.random() * h;
-    const v = Math.random() * 40 - 20;
-    ctx.fillStyle = `rgba(${130 + v|0},${125 + v|0},${118 + v|0},0.5)`;
-    ctx.fillRect(x, y, Math.random() * 3 + 1, Math.random() * 3 + 1);
-  }
-  
-  // Cracks
-  for (let i = 0; i < 3; i++) {
-    ctx.strokeStyle = 'rgba(80,75,70,0.3)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    let cx = Math.random() * w, cy = Math.random() * h;
-    ctx.moveTo(cx, cy);
-    for (let j = 0; j < 8; j++) {
-      cx += Math.random() * 30 - 15;
-      cy += Math.random() * 30 - 5;
-      ctx.lineTo(cx, cy);
-    }
-    ctx.stroke();
-  }
-  
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  return tex;
-}
-
-function asphaltTexture(w = 256, h = 256) {
-  const { canvas, ctx } = makeCanvas(w, h);
-  ctx.fillStyle = '#3a3a3a';
-  ctx.fillRect(0, 0, w, h);
-  
-  for (let i = 0; i < 5000; i++) {
-    const v = Math.random() * 30 - 15;
-    ctx.fillStyle = `rgba(${58 + v|0},${58 + v|0},${58 + v|0},0.6)`;
-    const x = Math.random() * w, y = Math.random() * h;
-    ctx.fillRect(x, y, Math.random() * 2 + 0.5, Math.random() * 2 + 0.5);
-  }
-  
-  // Patches and wear
-  for (let i = 0; i < 5; i++) {
-    ctx.fillStyle = `rgba(${50 + Math.random()*20|0},${50 + Math.random()*20|0},${50 + Math.random()*20|0},0.4)`;
-    ctx.beginPath();
-    ctx.ellipse(Math.random() * w, Math.random() * h, Math.random() * 30 + 10, Math.random() * 20 + 5, Math.random() * Math.PI, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(4, 4);
-  return tex;
-}
-
-function sidewalkTexture(w = 256, h = 256) {
-  const { canvas, ctx } = makeCanvas(w, h);
-  ctx.fillStyle = '#b8b0a4';
-  ctx.fillRect(0, 0, w, h);
-  
-  // Tile grid
-  const tileSize = w / 4;
-  for (let r = 0; r < 4; r++) {
-    for (let c = 0; c < 4; c++) {
-      const v = Math.random() * 15 - 7;
-      ctx.fillStyle = `rgb(${180 + v|0},${172 + v|0},${160 + v|0})`;
-      ctx.fillRect(c * tileSize + 1, r * tileSize + 1, tileSize - 2, tileSize - 2);
-      // Subtle noise
-      for (let i = 0; i < 30; i++) {
-        ctx.fillStyle = `rgba(0,0,0,${Math.random() * 0.08})`;
-        ctx.fillRect(c * tileSize + Math.random() * tileSize, r * tileSize + Math.random() * tileSize, 2, 2);
-      }
-    }
-  }
-  ctx.strokeStyle = '#9e968a';
-  ctx.lineWidth = 2;
-  for (let i = 0; i <= 4; i++) {
-    ctx.beginPath(); ctx.moveTo(i * tileSize, 0); ctx.lineTo(i * tileSize, h); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(0, i * tileSize); ctx.lineTo(w, i * tileSize); ctx.stroke();
-  }
-  
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(3, 3);
-  return tex;
-}
-
-function windowTexture() {
-  const { canvas, ctx } = makeCanvas(64, 96);
-  ctx.fillStyle = '#1a2a3a';
-  ctx.fillRect(0, 0, 64, 96);
-  // Glass reflection
-  ctx.fillStyle = 'rgba(100,140,180,0.3)';
-  ctx.fillRect(4, 4, 26, 88);
-  ctx.fillRect(34, 4, 26, 88);
-  // Frame
-  ctx.strokeStyle = '#d4cfc5';
-  ctx.lineWidth = 3;
-  ctx.strokeRect(2, 2, 60, 92);
-  ctx.beginPath(); ctx.moveTo(32, 2); ctx.lineTo(32, 94); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(2, 48); ctx.lineTo(62, 48); ctx.stroke();
-  // Curtain hint
-  if (Math.random() > 0.5) {
-    ctx.fillStyle = 'rgba(180,160,130,0.4)';
-    ctx.fillRect(4, 4, 10, 44);
-    ctx.fillRect(50, 4, 10, 44);
-  }
-  // Light inside (random)
-  if (Math.random() > 0.4) {
-    ctx.fillStyle = `rgba(255,220,150,${Math.random() * 0.15 + 0.05})`;
-    ctx.fillRect(4, 4, 56, 88);
-  }
-  return new THREE.CanvasTexture(canvas);
-}
-
-function spaetiSignTexture() {
-  const { canvas, ctx } = makeCanvas(256, 64);
-  ctx.fillStyle = '#1a4a1a';
-  ctx.fillRect(0, 0, 256, 64);
-  ctx.strokeStyle = '#e8c547';
-  ctx.lineWidth = 2;
-  ctx.strokeRect(4, 4, 248, 56);
-  ctx.fillStyle = '#e8c547';
-  ctx.font = 'bold 28px Courier New';
-  ctx.textAlign = 'center';
-  ctx.fillText('SPÄTKAUF', 128, 42);
-  return new THREE.CanvasTexture(canvas);
-}
-
-function ubahnSignTexture() {
-  const { canvas, ctx } = makeCanvas(128, 128);
-  ctx.fillStyle = '#003399';
-  ctx.fillRect(0, 0, 128, 128);
-  ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 80px Arial';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('U', 64, 60);
-  ctx.font = 'bold 14px Arial';
-  ctx.fillText('Kottbusser Tor', 64, 110);
-  return new THREE.CanvasTexture(canvas);
-}
-
-function streetSignTexture(name) {
-  const { canvas, ctx } = makeCanvas(256, 48);
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, 256, 48);
-  ctx.strokeStyle = '#333';
-  ctx.lineWidth = 2;
-  ctx.strokeRect(0, 0, 256, 48);
-  ctx.fillStyle = '#1a1a6a';
-  ctx.font = 'bold 18px Arial';
-  ctx.textAlign = 'center';
-  ctx.fillText(name, 128, 30);
-  return new THREE.CanvasTexture(canvas);
-}
-
-function doorTexture() {
-  const { canvas, ctx } = makeCanvas(64, 128);
-  ctx.fillStyle = '#4a3520';
-  ctx.fillRect(0, 0, 64, 128);
-  // Panels
-  ctx.fillStyle = '#3a2815';
-  ctx.fillRect(8, 8, 48, 35);
-  ctx.fillRect(8, 50, 48, 35);
-  ctx.fillRect(8, 92, 48, 28);
-  // Handle
-  ctx.fillStyle = '#c0a860';
-  ctx.beginPath();
-  ctx.arc(50, 72, 3, 0, Math.PI * 2);
-  ctx.fill();
-  // Frame
-  ctx.strokeStyle = '#5a4530';
-  ctx.lineWidth = 3;
-  ctx.strokeRect(1, 1, 62, 126);
-  return new THREE.CanvasTexture(canvas);
-}
-
-// ============================================================
-// THREE.JS SETUP
-// ============================================================
-const renderer = new THREE.WebGLRenderer({ antialias: !G.isMobile, powerPreference: 'high-performance' });
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, G.isMobile ? 1.5 : 2));
-renderer.shadowMap.enabled = false; // No shadows for mobile perf
-renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.2;
-document.body.prepend(renderer.domElement);
-
-const scene = new THREE.Scene();
-scene.background = new THREE.Color('#8899aa');
-scene.fog = new THREE.Fog('#8899aa', 40, 100);
-
-const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 120);
-camera.position.copy(G.playerPos);
-
-// Lighting
-const ambientLight = new THREE.AmbientLight('#b8c4d4', 1.2);
-scene.add(ambientLight);
-
-const dirLight = new THREE.DirectionalLight('#ffe8c0', 1.0);
-dirLight.position.set(30, 50, 20);
-scene.add(dirLight);
-
-const hemiLight = new THREE.HemisphereLight('#b0c4de', '#8b7355', 0.6);
-scene.add(hemiLight);
-
-// ============================================================
-// TEXTURES
-// ============================================================
-const TEX = {
-  brick1: brickTexture(256, 256, '#8B5E3C'),
-  brick2: brickTexture(256, 256, '#7A6B5D'),
-  brick3: brickTexture(256, 256, '#9B7653'),
-  brick4: brickTexture(256, 256, '#6B4E37'),
-  concrete: concreteTexture(),
-  asphalt: asphaltTexture(),
-  sidewalk: sidewalkTexture(),
-  spaeti: spaetiSignTexture(),
-  ubahn: ubahnSignTexture(),
-  door: doorTexture(),
-};
-
-const MAT = {
-  brick1: new THREE.MeshLambertMaterial({ map: TEX.brick1 }),
-  brick2: new THREE.MeshLambertMaterial({ map: TEX.brick2 }),
-  brick3: new THREE.MeshLambertMaterial({ map: TEX.brick3 }),
-  brick4: new THREE.MeshLambertMaterial({ map: TEX.brick4 }),
-  concrete: new THREE.MeshLambertMaterial({ map: TEX.concrete }),
-  asphalt: new THREE.MeshLambertMaterial({ map: TEX.asphalt }),
-  sidewalk: new THREE.MeshLambertMaterial({ map: TEX.sidewalk }),
-  windowLit: new THREE.MeshBasicMaterial({ color: '#2a3a4a' }),
-  metal: new THREE.MeshLambertMaterial({ color: '#606060' }),
-  darkMetal: new THREE.MeshLambertMaterial({ color: '#3a3a3a' }),
-  green: new THREE.MeshLambertMaterial({ color: '#2d5a27' }),
-  wood: new THREE.MeshLambertMaterial({ color: '#6b4e37' }),
-  yellow: new THREE.MeshLambertMaterial({ color: '#e8c547' }),
-  red: new THREE.MeshLambertMaterial({ color: '#c0392b' }),
-  white: new THREE.MeshLambertMaterial({ color: '#e8e4dc' }),
-  roof: new THREE.MeshLambertMaterial({ color: '#4a4040' }),
-  npcSkin: new THREE.MeshLambertMaterial({ color: '#d4a574' }),
-  npcClothes: new THREE.MeshLambertMaterial({ color: '#3a3a5a' }),
-};
-
-// ============================================================
-// COLLISION SYSTEM
-// ============================================================
-const colliders = []; // Array of {min, max} AABB
-
-function addCollider(x, z, hw, hd, h = 5) {
-  colliders.push({
-    min: new THREE.Vector3(x - hw, 0, z - hd),
-    max: new THREE.Vector3(x + hw, h, z + hd)
-  });
-}
-
-function checkCollision(pos, radius = 0.3) {
-  for (const c of colliders) {
-    const closestX = Math.max(c.min.x, Math.min(pos.x, c.max.x));
-    const closestZ = Math.max(c.min.z, Math.min(pos.z, c.max.z));
-    const dx = pos.x - closestX;
-    const dz = pos.z - closestZ;
-    if (dx * dx + dz * dz < radius * radius) {
-      return { collider: c, closestX, closestZ };
-    }
-  }
-  return null;
-}
-
-// ============================================================
-// WORLD BUILDING
-// ============================================================
-const STREET_W = 10;
-const SIDEWALK_W = 3;
-const BLOCK_SIZE = 30;
-
-// Ground
-function createGround() {
-  // Main street (runs along Z axis)
-  const streetGeo = new THREE.PlaneGeometry(STREET_W, 200);
-  const street = new THREE.Mesh(streetGeo, MAT.asphalt);
-  street.rotation.x = -Math.PI / 2;
-  street.position.set(0, 0.01, 0);
-  scene.add(street);
-  
-  // Cross street
-  const crossGeo = new THREE.PlaneGeometry(200, STREET_W);
-  const cross = new THREE.Mesh(crossGeo, MAT.asphalt);
-  cross.rotation.x = -Math.PI / 2;
-  cross.position.set(0, 0.01, 0);
-  scene.add(cross);
-  
-  // Sidewalks
-  const sidewalkPositions = [
-    // Main street sidewalks
-    { x: STREET_W / 2 + SIDEWALK_W / 2, z: 0, w: SIDEWALK_W, d: 200 },
-    { x: -STREET_W / 2 - SIDEWALK_W / 2, z: 0, w: SIDEWALK_W, d: 200 },
-    // Cross street sidewalks
-    { x: 0, z: STREET_W / 2 + SIDEWALK_W / 2, w: 200, d: SIDEWALK_W },
-    { x: 0, z: -STREET_W / 2 - SIDEWALK_W / 2, w: 200, d: SIDEWALK_W },
-  ];
-  
-  sidewalkPositions.forEach(s => {
-    const geo = new THREE.PlaneGeometry(s.w, s.d);
-    const mesh = new THREE.Mesh(geo, MAT.sidewalk);
-    mesh.rotation.x = -Math.PI / 2;
-    mesh.position.set(s.x, 0.05, s.z);
-    scene.add(mesh);
-  });
-  
-  // Curbs
-  const curbMat = new THREE.MeshLambertMaterial({ color: '#8a8478' });
-  const createCurb = (x, z, w, d) => {
-    const geo = new THREE.BoxGeometry(w, 0.12, d);
-    const mesh = new THREE.Mesh(geo, curbMat);
-    mesh.position.set(x, 0.06, z);
-    scene.add(mesh);
-  };
-  createCurb(STREET_W / 2, 0, 0.15, 200);
-  createCurb(-STREET_W / 2, 0, 0.15, 200);
-  createCurb(0, STREET_W / 2, 200, 0.15);
-  createCurb(0, -STREET_W / 2, 200, 0.15);
-  
-  // Road markings
-  const markMat = new THREE.MeshBasicMaterial({ color: '#ffffff' });
-  for (let z = -95; z < 100; z += 8) {
-    const mark = new THREE.Mesh(new THREE.PlaneGeometry(0.15, 3), markMat);
-    mark.rotation.x = -Math.PI / 2;
-    mark.position.set(0, 0.02, z);
-    scene.add(mark);
-  }
-  for (let x = -95; x < 100; x += 8) {
-    const mark = new THREE.Mesh(new THREE.PlaneGeometry(3, 0.15), markMat);
-    mark.rotation.x = -Math.PI / 2;
-    mark.position.set(x, 0.02, 0);
-    scene.add(mark);
-  }
-}
-
-// Building creation
-function createBuilding(x, z, w, d, h, brickMat, side, features = {}) {
-  const group = new THREE.Group();
-  
-  // Main structure
-  const geo = new THREE.BoxGeometry(w, h, d);
-  const matArray = [
-    brickMat, brickMat,
-    MAT.roof, MAT.concrete,
-    brickMat, brickMat
-  ];
-  const mesh = new THREE.Mesh(geo, matArray);
-  mesh.position.set(x, h / 2, z);
-  group.add(mesh);
-  addCollider(x, z, w / 2, d / 2, h);
-  
-  // Windows
-  const windowRows = Math.floor((h - 3) / 3);
-  const windowCols = Math.floor(w / 3);
-  const facingDir = side === 'left' ? 1 : side === 'right' ? -1 : 0;
-  const facingZ = side === 'front' ? 1 : side === 'back' ? -1 : 0;
-  
-  for (let row = 0; row < windowRows; row++) {
-    for (let col = 0; col < windowCols; col++) {
-      const winTex = windowTexture();
-      const winMat = new THREE.MeshBasicMaterial({ map: winTex });
-      const winGeo = new THREE.PlaneGeometry(1.2, 1.8);
-      const win = new THREE.Mesh(winGeo, winMat);
-      
-      if (facingDir !== 0) {
-        win.position.set(
-          x + facingDir * (w / 2 + 0.01),
-          3 + row * 3,
-          z - d / 2 + (col + 1) * (d / (windowCols + 1))
-        );
-        if (facingDir === -1) win.rotation.y = Math.PI;
-      } else {
-        win.position.set(
-          x - w / 2 + (col + 1) * (w / (windowCols + 1)),
-          3 + row * 3,
-          z + facingZ * (d / 2 + 0.01)
-        );
-        if (facingZ === -1) win.rotation.y = Math.PI;
-      }
-      group.add(win);
-    }
-  }
-  
-  // Door
-  if (features.door) {
-    const doorTex = TEX.door;
-    const doorMat = new THREE.MeshBasicMaterial({ map: doorTex });
-    const doorGeo = new THREE.PlaneGeometry(1.2, 2.4);
-    const door = new THREE.Mesh(doorGeo, doorMat);
+    <canvas id="gameCanvas"></canvas>
     
-    if (facingDir !== 0) {
-      door.position.set(x + facingDir * (w / 2 + 0.01), 1.2, z);
-      if (facingDir === -1) door.rotation.y = Math.PI;
-    } else {
-      door.position.set(x, 1.2, z + facingZ * (d / 2 + 0.01));
-      if (facingZ === -1) door.rotation.y = Math.PI;
-    }
-    group.add(door);
-  }
-  
-  // Ground floor different color (shops etc.)
-  if (features.groundFloor) {
-    const gfGeo = new THREE.BoxGeometry(w + 0.1, 3, d + 0.1);
-    const gfMesh = new THREE.Mesh(gfGeo, MAT.concrete);
-    gfMesh.position.set(x, 1.5, z);
-    group.add(gfMesh);
-  }
-  
-  scene.add(group);
-  G.buildings.push({ x, z, w, d, h, group });
-  return group;
-}
+    <div id="ui">
+        <div id="start-screen">
+            <h1>KIEZKINGS</h1>
+            <p>Berlin Street Survival - First Person</p>
+            <button id="start-btn" onclick="startGame()">🎮 SPIEL STARTEN</button>
+        </div>
+        
+        <div id="stats" style="display: none;">
+            <div class="stat-row">
+                <span>❤️ Gesundheit:</span>
+                <div class="stat-bar"><div class="stat-fill health" id="health-bar"></div></div>
+                <span id="health-text">100</span>
+            </div>
+            <div class="stat-row">
+                <span>🍞 Hunger:</span>
+                <div class="stat-bar"><div class="stat-fill hunger" id="hunger-bar"></div></div>
+                <span id="hunger-text">80</span>
+            </div>
+            <div class="stat-row">
+                <span>🔥 Wärme:</span>
+                <div class="stat-bar"><div class="stat-fill warmth" id="warmth-bar"></div></div>
+                <span id="warmth-text">60</span>
+            </div>
+            <div class="stat-row">
+                <span>⚡ Energie:</span>
+                <div class="stat-bar"><div class="stat-fill energy" id="energy-bar"></div></div>
+                <span id="energy-text">90</span>
+            </div>
+            <div class="stat-row">
+                <span>💰 Geld:</span>
+                <span id="money-text">2.50€</span>
+            </div>
+        </div>
+        
+        <div id="crosshair">+</div>
+        
+        <div id="movement-joystick">
+            <div class="joystick-outer">
+                <div class="joystick-inner"></div>
+            </div>
+        </div>
+        
+        <div id="controls" style="display: none;">
+            <button class="control-btn" onclick="doAction('search')">🗑️ Suchen</button>
+            <button class="control-btn" onclick="doAction('rest')">😴 Ruhen</button>
+            <button class="control-btn" onclick="doAction('beg')">🤲 Betteln</button>
+        </div>
+        
+        <div id="instructions" style="display: none;">
+            <div>HANDY: Drag anywhere to look around • Joystick to move</div>
+            <div>DESKTOP: WASD to move • Mouse to look around</div>
+        </div>
+    </div>
 
-// Späti store
-function createSpaeti(x, z, side) {
-  const group = new THREE.Group();
-  const w = 6, d = 5, h = 3.5;
-  
-  const geo = new THREE.BoxGeometry(w, h, d);
-  const mesh = new THREE.Mesh(geo, MAT.concrete);
-  mesh.position.set(x, h / 2, z);
-  group.add(mesh);
-  addCollider(x, z, w / 2, d / 2, h);
-  
-  // Storefront glass
-  const glassMat = new THREE.MeshBasicMaterial({ color: '#1a3a2a', transparent: true, opacity: 0.7 });
-  const glassGeo = new THREE.PlaneGeometry(w - 1, 2.5);
-  const glass = new THREE.Mesh(glassGeo, glassMat);
-  const dir = side === 'left' ? 1 : -1;
-  glass.position.set(x + dir * (w / 2 + 0.01), 1.5, z);
-  if (dir === -1) glass.rotation.y = Math.PI;
-  group.add(glass);
-  
-  // Sign
-  const signMat = new THREE.MeshBasicMaterial({ map: TEX.spaeti });
-  const signGeo = new THREE.PlaneGeometry(4, 1);
-  const sign = new THREE.Mesh(signGeo, signMat);
-  sign.position.set(x + dir * (w / 2 + 0.02), 3.2, z);
-  if (dir === -1) sign.rotation.y = Math.PI;
-  group.add(sign);
-  
-  // Awning
-  const awnGeo = new THREE.BoxGeometry(w + 0.5, 0.05, 1.5);
-  const awnMat = new THREE.MeshLambertMaterial({ color: '#1a4a1a' });
-  const awning = new THREE.Mesh(awnGeo, awnMat);
-  awning.position.set(x, 3.4, z + dir * 0.8);
-  group.add(awning);
-  
-  // Neon open sign
-  const neonGeo = new THREE.BoxGeometry(1.2, 0.4, 0.05);
-  const neonMat = new THREE.MeshBasicMaterial({ color: '#ff3333', transparent: true, opacity: 0.9 });
-  const neon = new THREE.Mesh(neonGeo, neonMat);
-  neon.position.set(x + 1.5, 2.8, z + dir * (d / 2 + 0.06));
-  group.add(neon);
-  
-  scene.add(group);
-  
-  // Interaction zone
-  G.interactables.push({
-    type: 'spaeti',
-    position: new THREE.Vector3(x + dir * (w / 2 + 1), 1.5, z),
-    radius: 3,
-    label: 'Späti betreten',
-    active: true
-  });
-}
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Game State
+        const gameState = {
+            health: 100,
+            hunger: 80,
+            warmth: 60,
+            energy: 90,
+            money: 2.50,
+            playing: false
+        };
 
-// U-Bahn entrance
-function createUBahn(x, z) {
-  const group = new THREE.Group();
-  
-  // Entrance structure
-  const wallGeo = new THREE.BoxGeometry(4, 3, 0.3);
-  const wall = new THREE.Mesh(wallGeo, MAT.metal);
-  wall.position.set(x, 1.5, z);
-  group.add(wall);
-  addCollider(x, z, 2, 0.2, 3);
-  
-  // Sign
-  const signMat = new THREE.MeshBasicMaterial({ map: TEX.ubahn });
-  const signGeo = new THREE.PlaneGeometry(2, 2);
-  const sign = new THREE.Mesh(signGeo, signMat);
-  sign.position.set(x, 3.5, z + 0.2);
-  group.add(sign);
-  
-  // Railing
-  const railGeo = new THREE.BoxGeometry(0.05, 1, 3);
-  [-1.8, 1.8].forEach(offset => {
-    const rail = new THREE.Mesh(railGeo, MAT.darkMetal);
-    rail.position.set(x + offset, 0.5, z + 1.5);
-    group.add(rail);
-  });
-  
-  // Steps going down (visual)
-  for (let i = 0; i < 4; i++) {
-    const stepGeo = new THREE.BoxGeometry(3.4, 0.2, 0.6);
-    const step = new THREE.Mesh(stepGeo, MAT.concrete);
-    step.position.set(x, -i * 0.2, z + 1 + i * 0.6);
-    group.add(step);
-  }
-  
-  scene.add(group);
-  
-  G.interactables.push({
-    type: 'ubahn',
-    position: new THREE.Vector3(x, 1.5, z + 1),
-    radius: 2.5,
-    label: 'U-Bahn (Wärme +20, 2.80€)',
-    active: true
-  });
-}
+        // 3D Scene Variables
+        let scene, camera, renderer;
+        let buildings = [], streetItems = [];
+        
+        // Camera controls - FIXED FOR MOBILE
+        let yaw = 0, pitch = 0;
+        const mouseSensitivity = 0.002;
+        const touchSensitivity = 0.004; // Higher sensitivity for touch
+        let isPointerLocked = false;
+        
+        // Movement
+        let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
+        const moveSpeed = 0.1;
+        const position = new THREE.Vector3(0, 1.7, 5);
+        
+        // Mobile controls
+        let isTouchLooking = false;
+        let lastTouchX = 0, lastTouchY = 0;
+        let joystickActive = false;
+        let joystickVector = { x: 0, y: 0 };
+        
+        function init3D() {
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87CEEB); // Sky blue
+            scene.fog = new THREE.Fog(0x87CEEB, 10, 50);
 
-// Street furniture
-function createTrashBin(x, z, id) {
-  const group = new THREE.Group();
-  const geo = new THREE.CylinderGeometry(0.25, 0.3, 0.8, 8);
-  const mesh = new THREE.Mesh(geo, MAT.darkMetal);
-  mesh.position.set(x, 0.6, z);
-  group.add(mesh);
-  
-  // Orange ring (Berlin BSR style)
-  const ringGeo = new THREE.TorusGeometry(0.27, 0.03, 4, 8);
-  const ringMat = new THREE.MeshLambertMaterial({ color: '#e87d20' });
-  const ring = new THREE.Mesh(ringGeo, ringMat);
-  ring.position.set(x, 0.9, z);
-  ring.rotation.x = Math.PI / 2;
-  group.add(ring);
-  
-  // Post
-  const postGeo = new THREE.CylinderGeometry(0.03, 0.03, 0.8, 6);
-  const post = new THREE.Mesh(postGeo, MAT.darkMetal);
-  post.position.set(x, 0.2, z);
-  group.add(post);
-  
-  scene.add(group);
-  addCollider(x, z, 0.3, 0.3, 1);
-  
-  G.interactables.push({
-    type: 'trashbin',
-    id: `trash_${id}`,
-    position: new THREE.Vector3(x, 0.6, z),
-    radius: 1.8,
-    label: 'Mülleimer durchsuchen',
-    active: true,
-    respawnTime: 60 // seconds
-  });
-}
+            // Camera
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
+            camera.position.copy(position);
 
-function createBench(x, z, rotY = 0) {
-  const group = new THREE.Group();
-  
-  // Seat
-  const seatGeo = new THREE.BoxGeometry(1.5, 0.08, 0.4);
-  const seat = new THREE.Mesh(seatGeo, MAT.wood);
-  seat.position.set(0, 0.45, 0);
-  group.add(seat);
-  
-  // Back
-  const backGeo = new THREE.BoxGeometry(1.5, 0.5, 0.06);
-  const back = new THREE.Mesh(backGeo, MAT.wood);
-  back.position.set(0, 0.7, -0.18);
-  group.add(back);
-  
-  // Legs
-  const legGeo = new THREE.BoxGeometry(0.05, 0.45, 0.35);
-  [-0.6, 0.6].forEach(offset => {
-    const leg = new THREE.Mesh(legGeo, MAT.darkMetal);
-    leg.position.set(offset, 0.22, 0);
-    group.add(leg);
-  });
-  
-  group.position.set(x, 0, z);
-  group.rotation.y = rotY;
-  scene.add(group);
-  addCollider(x, z, 0.8, 0.3, 1);
-  
-  G.interactables.push({
-    type: 'bench',
-    position: new THREE.Vector3(x, 0.5, z),
-    radius: 2,
-    label: 'Ausruhen (Energie +15)',
-    active: true
-  });
-}
+            // Renderer
+            const canvas = document.getElementById('gameCanvas');
+            renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: false });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
 
-function createStreetLight(x, z) {
-  const group = new THREE.Group();
-  
-  const poleGeo = new THREE.CylinderGeometry(0.04, 0.06, 5, 6);
-  const pole = new THREE.Mesh(poleGeo, MAT.darkMetal);
-  pole.position.set(x, 2.5, z);
-  group.add(pole);
-  
-  const armGeo = new THREE.BoxGeometry(1.2, 0.04, 0.04);
-  const arm = new THREE.Mesh(armGeo, MAT.darkMetal);
-  arm.position.set(x + 0.5, 4.9, z);
-  group.add(arm);
-  
-  const lampGeo = new THREE.BoxGeometry(0.4, 0.12, 0.2);
-  const lampMat = new THREE.MeshBasicMaterial({ color: '#ffdd88' });
-  const lamp = new THREE.Mesh(lampGeo, lampMat);
-  lamp.position.set(x + 1, 4.8, z);
-  group.add(lamp);
-  
-  // Point light
-  const light = new THREE.PointLight('#ffdd88', 0.5, 12);
-  light.position.set(x + 1, 4.5, z);
-  group.add(light);
-  
-  scene.add(group);
-  addCollider(x, z, 0.08, 0.08, 5);
-}
-
-function createStreetSign(x, z, name, rotY = 0) {
-  const group = new THREE.Group();
-  
-  const poleGeo = new THREE.CylinderGeometry(0.03, 0.03, 3, 6);
-  const pole = new THREE.Mesh(poleGeo, MAT.darkMetal);
-  pole.position.set(0, 1.5, 0);
-  group.add(pole);
-  
-  const signTex = streetSignTexture(name);
-  const signMat = new THREE.MeshBasicMaterial({ map: signTex });
-  const signGeo = new THREE.PlaneGeometry(1.8, 0.35);
-  const sign = new THREE.Mesh(signGeo, signMat);
-  sign.position.set(0, 3, 0);
-  group.add(sign);
-  
-  // Back of sign
-  const backSign = new THREE.Mesh(signGeo, MAT.darkMetal);
-  backSign.position.set(0, 3, -0.02);
-  backSign.rotation.y = Math.PI;
-  group.add(backSign);
-  
-  group.position.set(x, 0, z);
-  group.rotation.y = rotY;
-  scene.add(group);
-  addCollider(x, z, 0.05, 0.05, 3.5);
-}
-
-// Collectible items
-function createCollectible(x, z, type, id) {
-  if (G.collected.has(id)) return;
-  
-  const items = {
-    bottle: { emoji: '🍺', label: 'Pfandflasche (0.25€)', color: '#2ecc71', h: 0.15, r: 0.08 },
-    food: { emoji: '🥪', label: 'Essen gefunden', color: '#e8a547', h: 0.08, r: 0.12 },
-    jacket: { emoji: '🧥', label: 'Alte Jacke (Wärme +20)', color: '#666', h: 0.15, r: 0.15 },
-    money: { emoji: '💶', label: 'Geld gefunden!', color: '#e8c547', h: 0.02, r: 0.1 },
-    bandage: { emoji: '🩹', label: 'Verbandszeug (Leben +15)', color: '#e74c3c', h: 0.05, r: 0.08 },
-    coffee: { emoji: '☕', label: 'Kaffeebecher (Energie +10)', color: '#8B4513', h: 0.12, r: 0.06 },
-  };
-  
-  const info = items[type];
-  if (!info) return;
-  
-  const geo = new THREE.CylinderGeometry(info.r, info.r, info.h, 8);
-  const mat = new THREE.MeshLambertMaterial({ color: info.color });
-  const mesh = new THREE.Mesh(geo, mat);
-  mesh.position.set(x, info.h / 2 + 0.01, z);
-  scene.add(mesh);
-  
-  const interactable = {
-    type: 'collectible',
-    subtype: type,
-    id,
-    position: new THREE.Vector3(x, info.h / 2, z),
-    radius: 2,
-    label: info.label,
-    active: true,
-    mesh,
-    emoji: info.emoji
-  };
-  G.interactables.push(interactable);
-  return interactable;
-}
-
-// NPC creation
-function createNPC(x, z, npcType) {
-  const group = new THREE.Group();
-  
-  // Body
-  const bodyGeo = new THREE.BoxGeometry(0.5, 0.8, 0.3);
-  const clothesMat = new THREE.MeshLambertMaterial({ 
-    color: ['#3a3a5a', '#4a3a2a', '#2a4a3a', '#5a3a3a'][Math.floor(Math.random() * 4)]
-  });
-  const body = new THREE.Mesh(bodyGeo, clothesMat);
-  body.position.y = 1.1;
-  group.add(body);
-  
-  // Head
-  const headGeo = new THREE.BoxGeometry(0.3, 0.3, 0.3);
-  const head = new THREE.Mesh(headGeo, MAT.npcSkin);
-  head.position.y = 1.65;
-  group.add(head);
-  
-  // Legs
-  const legGeo = new THREE.BoxGeometry(0.18, 0.7, 0.25);
-  [-0.12, 0.12].forEach(offset => {
-    const leg = new THREE.Mesh(legGeo, new THREE.MeshLambertMaterial({ color: '#2a2a3a' }));
-    leg.position.set(offset, 0.35, 0);
-    group.add(leg);
-  });
-  
-  // Hat (Berlin hipster beanie)
-  if (Math.random() > 0.4) {
-    const hatGeo = new THREE.CylinderGeometry(0.16, 0.17, 0.15, 8);
-    const hatMat = new THREE.MeshLambertMaterial({ color: '#2a2a2a' });
-    const hat = new THREE.Mesh(hatGeo, hatMat);
-    hat.position.y = 1.85;
-    group.add(hat);
-  }
-  
-  group.position.set(x, 0, z);
-  scene.add(group);
-  
-  const npcData = {
-    type: npcType,
-    group,
-    position: new THREE.Vector3(x, 0, z),
-    walkDir: new THREE.Vector3((Math.random() - 0.5) * 2, 0, (Math.random() - 0.5) * 2).normalize(),
-    walkSpeed: 0.5 + Math.random() * 0.5,
-    walkTimer: 0,
-    walkDuration: 3 + Math.random() * 5,
-    pauseTimer: 0,
-    pauseDuration: 2 + Math.random() * 4,
-    isWalking: true,
-    interacted: false,
-  };
-  
-  G.npcs.push(npcData);
-  
-  G.interactables.push({
-    type: 'npc',
-    npcData,
-    position: npcData.position,
-    radius: 2.5,
-    label: getNPCLabel(npcType),
-    active: true
-  });
-}
-
-function getNPCLabel(type) {
-  const labels = {
-    tourist: 'Tourist ansprechen',
-    punk: 'Punk ansprechen',
-    hipster: 'Hipster ansprechen',
-    oma: 'Ältere Dame ansprechen',
-    dealer: 'Verdächtige Person',
-    musician: 'Straßenmusiker',
-  };
-  return labels[type] || 'Person ansprechen';
-}
-
-// ============================================================
-// BUILD THE WORLD
-// ============================================================
-function buildWorld() {
-  createGround();
-  
-  const brickMats = [MAT.brick1, MAT.brick2, MAT.brick3, MAT.brick4];
-  
-  // Buildings along main street (East side - right)
-  for (let i = -3; i <= 3; i++) {
-    if (i === 0) continue; // Gap for cross street
-    const z = i * BLOCK_SIZE;
-    const h = 12 + Math.random() * 10;
-    const w = 12 + Math.random() * 5;
-    const mat = brickMats[Math.floor(Math.random() * brickMats.length)];
-    createBuilding(STREET_W / 2 + SIDEWALK_W + w / 2, z, w, BLOCK_SIZE - 2, h, mat, 'left', { door: true, groundFloor: Math.random() > 0.3 });
-  }
-  
-  // Buildings along main street (West side - left)
-  for (let i = -3; i <= 3; i++) {
-    if (i === 0) continue;
-    const z = i * BLOCK_SIZE;
-    const h = 10 + Math.random() * 12;
-    const w = 11 + Math.random() * 6;
-    const mat = brickMats[Math.floor(Math.random() * brickMats.length)];
-    createBuilding(-STREET_W / 2 - SIDEWALK_W - w / 2, z, w, BLOCK_SIZE - 2, h, mat, 'right', { door: true, groundFloor: Math.random() > 0.3 });
-  }
-  
-  // Buildings along cross street (North side)
-  for (let i = -3; i <= 3; i++) {
-    if (i === 0) continue;
-    const x = i * BLOCK_SIZE;
-    const h = 10 + Math.random() * 10;
-    const d = 10 + Math.random() * 5;
-    const mat = brickMats[Math.floor(Math.random() * brickMats.length)];
-    createBuilding(x, STREET_W / 2 + SIDEWALK_W + d / 2, BLOCK_SIZE - 2, d, h, mat, 'back', { door: true });
-  }
-  
-  // Buildings along cross street (South side)
-  for (let i = -3; i <= 3; i++) {
-    if (i === 0) continue;
-    const x = i * BLOCK_SIZE;
-    const h = 11 + Math.random() * 9;
-    const d = 10 + Math.random() * 4;
-    const mat = brickMats[Math.floor(Math.random() * brickMats.length)];
-    createBuilding(x, -STREET_W / 2 - SIDEWALK_W - d / 2, BLOCK_SIZE - 2, d, h, mat, 'front', { door: true });
-  }
-  
-  // Spätis
-  createSpaeti(STREET_W / 2 + SIDEWALK_W + 3, 15, 'left');
-  createSpaeti(-STREET_W / 2 - SIDEWALK_W - 3, -40, 'right');
-  
-  // U-Bahn
-  createUBahn(6, -6);
-  
-  // Street furniture
-  const trashPositions = [
-    [7, 10], [-7, 10], [7, -15], [-7, -15], [7, 35], [-7, 35],
-    [7, -40], [-7, -40], [15, 7], [-15, 7], [15, -7], [-15, -7],
-    [7, 55], [-7, -60], [35, 7], [-35, -7],
-  ];
-  trashPositions.forEach((p, i) => createTrashBin(p[0], p[1], i));
-  
-  // Benches
-  createBench(7.5, 25, 0);
-  createBench(-7.5, -25, Math.PI);
-  createBench(25, 7.5, Math.PI / 2);
-  createBench(-25, -7.5, -Math.PI / 2);
-  createBench(7.5, 50, 0);
-  createBench(-7.5, -55, Math.PI);
-  
-  // Street lights
-  for (let i = -3; i <= 3; i++) {
-    createStreetLight(STREET_W / 2 + 0.5, i * 20);
-    createStreetLight(-STREET_W / 2 - 0.5, i * 20 + 10);
-    if (i !== 0) {
-      createStreetLight(i * 20, STREET_W / 2 + 0.5);
-      createStreetLight(i * 20 + 10, -STREET_W / 2 - 0.5);
-    }
-  }
-  
-  // Street signs
-  createStreetSign(STREET_W / 2 + 1, STREET_W / 2 + 1, 'Oranienstraße', 0);
-  createStreetSign(-STREET_W / 2 - 1, -STREET_W / 2 - 1, 'Adalbertstraße', Math.PI / 2);
-  createStreetSign(STREET_W / 2 + 1, -STREET_W / 2 - 1, 'Kottbusser Str.', 0);
-  
-  // Collectibles scattered around
-  const collectibles = [
-    [8, 5, 'bottle', 'b1'], [-6, 12, 'bottle', 'b2'], [8, -20, 'bottle', 'b3'],
-    [-8, -30, 'bottle', 'b4'], [20, 8, 'bottle', 'b5'], [-20, -8, 'bottle', 'b6'],
-    [8, 40, 'bottle', 'b7'], [-8, 45, 'bottle', 'b8'],
-    [7, 22, 'food', 'f1'], [-7, -18, 'food', 'f2'], [25, 6, 'food', 'f3'],
-    [6, -50, 'jacket', 'j1'], [-15, 8, 'bandage', 'bd1'], [30, -7, 'bandage', 'bd2'],
-    [8, 60, 'money', 'm1'], [-30, 7, 'money', 'm2'],
-    [-7, 30, 'coffee', 'c1'], [7, -35, 'coffee', 'c2'],
-  ];
-  collectibles.forEach(c => createCollectible(c[0], c[1], c[2], c[3]));
-  
-  // NPCs
-  createNPC(15, 8, 'tourist');
-  createNPC(-12, -5, 'punk');
-  createNPC(8, 30, 'hipster');
-  createNPC(-8, -35, 'oma');
-  createNPC(25, -8, 'musician');
-  createNPC(-20, 7, 'dealer');
-  
-  // Debris / urban details
-  const debrisMat = new THREE.MeshLambertMaterial({ color: '#555' });
-  for (let i = 0; i < 40; i++) {
-    const size = Math.random() * 0.15 + 0.02;
-    const geo = new THREE.BoxGeometry(size, size * 0.3, size);
-    const debris = new THREE.Mesh(geo, debrisMat);
-    const angle = Math.random() * Math.PI * 2;
-    const dist = 6 + Math.random() * 70;
-    debris.position.set(Math.cos(angle) * dist, size * 0.15, Math.sin(angle) * dist);
-    debris.rotation.y = Math.random() * Math.PI;
-    scene.add(debris);
-  }
-  
-  // Graffiti colored patches on some walls (visual flair)
-  const graffitiColors = ['#e74c3c', '#3498db', '#2ecc71', '#e8c547', '#9b59b6'];
-  for (let i = 0; i < 8; i++) {
-    const color = graffitiColors[Math.floor(Math.random() * graffitiColors.length)];
-    const gMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.6 });
-    const gGeo = new THREE.PlaneGeometry(1 + Math.random() * 2, 0.5 + Math.random() * 1.5);
-    const graffiti = new THREE.Mesh(gGeo, gMat);
-    
-    const building = G.buildings[Math.floor(Math.random() * G.buildings.length)];
-    if (building) {
-      const side = Math.random() > 0.5 ? 1 : -1;
-      graffiti.position.set(
-        building.x + side * (building.w / 2 + 0.02),
-        1 + Math.random() * 2,
-        building.z + (Math.random() - 0.5) * building.d * 0.8
-      );
-      if (side === -1) graffiti.rotation.y = Math.PI;
-      scene.add(graffiti);
-    }
-  }
-}
-
-// ============================================================
-// FIRST-PERSON HAND
-// ============================================================
-const handGroup = new THREE.Group();
-// Arm
-const armGeo = new THREE.BoxGeometry(0.12, 0.12, 0.5);
-const armMat = new THREE.MeshLambertMaterial({ color: '#c4956a' });
-const arm = new THREE.Mesh(armGeo, armMat);
-arm.position.set(0.3, -0.25, -0.4);
-arm.rotation.x = -0.1;
-arm.rotation.z = -0.1;
-handGroup.add(arm);
-
-// Sleeve
-const sleeveGeo = new THREE.BoxGeometry(0.14, 0.14, 0.25);
-const sleeveMat = new THREE.MeshLambertMaterial({ color: '#3a3a4a' });
-const sleeve = new THREE.Mesh(sleeveGeo, sleeveMat);
-sleeve.position.set(0.3, -0.25, -0.15);
-handGroup.add(sleeve);
-
-// Hand
-const handGeo = new THREE.BoxGeometry(0.1, 0.06, 0.12);
-const hand = new THREE.Mesh(handGeo, armMat);
-hand.position.set(0.3, -0.22, -0.62);
-handGroup.add(hand);
-
-camera.add(handGroup);
-scene.add(camera);
-
-// ============================================================
-// INPUT HANDLING
-// ============================================================
-const keys = {};
-
-document.addEventListener('keydown', e => {
-  keys[e.code] = true;
-  if (e.code === 'KeyE') handleInteraction();
-  if (e.code === 'Escape' && G.shopOpen) closeShop();
-  if (e.code === 'Escape' && G.notifOpen) closeNotification();
-});
-document.addEventListener('keyup', e => { keys[e.code] = false; });
-
-// Pointer lock (desktop)
-renderer.domElement.addEventListener('click', () => {
-  if (!G.started || G.dead || G.shopOpen || G.notifOpen) return;
-  if (!G.isMobile && !G.isPointerLocked) {
-    renderer.domElement.requestPointerLock();
-  }
-});
-
-document.addEventListener('pointerlockchange', () => {
-  G.isPointerLocked = document.pointerLockElement === renderer.domElement;
-});
-
-document.addEventListener('mousemove', e => {
-  if (!G.isPointerLocked || G.shopOpen || G.notifOpen) return;
-  G.yaw -= e.movementX * 0.002;
-  G.pitch -= e.movementY * 0.002;
-  G.pitch = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, G.pitch));
-});
-
-// Touch controls
-let joystickTouch = null;
-let lookTouch = null;
-let joystickCenter = { x: 0, y: 0 };
-
-const joystickArea = document.getElementById('joystickArea');
-const joystickThumb = document.getElementById('joystickThumb');
-const touchInteract = document.getElementById('touchInteract');
-const touchSprint = document.getElementById('touchSprint');
-
-if (G.isMobile) {
-  document.getElementById('touchControls').style.display = 'block';
-  document.querySelector('.desktop-info').style.display = 'none';
-  document.getElementById('interactKey').textContent = '⬤';
-  
-  joystickArea.addEventListener('touchstart', e => {
-    e.preventDefault();
-    const t = e.changedTouches[0];
-    joystickTouch = t.identifier;
-    const rect = joystickArea.getBoundingClientRect();
-    joystickCenter = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
-  }, { passive: false });
-  
-  document.addEventListener('touchmove', e => {
-    for (const t of e.changedTouches) {
-      if (t.identifier === joystickTouch) {
-        const dx = t.clientX - joystickCenter.x;
-        const dy = t.clientY - joystickCenter.y;
-        const maxDist = 50;
-        const dist = Math.min(Math.sqrt(dx * dx + dy * dy), maxDist);
-        const angle = Math.atan2(dy, dx);
-        const nx = Math.cos(angle) * dist;
-        const ny = Math.sin(angle) * dist;
-        joystickThumb.style.transform = `translate(calc(-50% + ${nx}px), calc(-50% + ${ny}px))`;
-        G.moveInput.x = nx / maxDist;
-        G.moveInput.z = ny / maxDist;
-      } else if (t.identifier === lookTouch) {
-        G.yaw -= (t.clientX - lookTouch._lastX) * 0.004;
-        G.pitch -= (t.clientY - lookTouch._lastY) * 0.004;
-        G.pitch = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, G.pitch));
-        lookTouch._lastX = t.clientX;
-        lookTouch._lastY = t.clientY;
-      }
-    }
-  }, { passive: false });
-  
-  document.addEventListener('touchend', e => {
-    for (const t of e.changedTouches) {
-      if (t.identifier === joystickTouch) {
-        joystickTouch = null;
-        joystickThumb.style.transform = 'translate(-50%, -50%)';
-        G.moveInput.x = 0;
-        G.moveInput.z = 0;
-      }
-      if (lookTouch && t.identifier === lookTouch.identifier) {
-        lookTouch = null;
-      }
-    }
-  });
-  
-  // Look touch on canvas (right half of screen)
-  renderer.domElement.addEventListener('touchstart', e => {
-    for (const t of e.changedTouches) {
-      if (t.clientX > window.innerWidth * 0.35 && !lookTouch) {
-        lookTouch = { identifier: t.identifier, _lastX: t.clientX, _lastY: t.clientY };
-      }
-    }
-  }, { passive: false });
-  
-  touchInteract.addEventListener('touchstart', e => {
-    e.preventDefault();
-    handleInteraction();
-  }, { passive: false });
-  
-  let sprintInterval;
-  touchSprint.addEventListener('touchstart', e => {
-    e.preventDefault();
-    G.sprinting = true;
-  }, { passive: false });
-  touchSprint.addEventListener('touchend', () => { G.sprinting = false; });
-} else {
-  document.querySelector('.mobile-info').style.display = 'none';
-}
-
-// ============================================================
-// GAME MECHANICS
-// ============================================================
-function showMessage(text, duration = 3000) {
-  const log = document.getElementById('msgLog');
-  const msg = document.createElement('div');
-  msg.className = 'msg';
-  msg.textContent = text;
-  log.appendChild(msg);
-  G.messages.push({ el: msg, time: Date.now() + duration });
-}
-
-function updateStats(dt) {
-  // Passive drain
-  G.stats.hunger -= dt * 0.8;
-  G.stats.energy -= dt * 0.3;
-  
-  // Temperature effect
-  const hour = Math.floor(G.gameTime / 60);
-  const isNight = hour < 6 || hour > 21;
-  G.stats.warmth -= dt * (isNight ? 1.5 : 0.5);
-  
-  // Sprinting costs energy
-  if (G.sprinting && (G.moveInput.x !== 0 || G.moveInput.z !== 0)) {
-    G.stats.energy -= dt * 2;
-  }
-  
-  // Low stats effects
-  if (G.stats.hunger <= 0) { G.stats.health -= dt * 2; G.stats.hunger = 0; }
-  if (G.stats.warmth <= 0) { G.stats.health -= dt * 1.5; G.stats.warmth = 0; }
-  if (G.stats.energy <= 0) { G.stats.energy = 0; }
-  
-  // Clamp
-  for (const k of Object.keys(G.stats)) {
-    G.stats[k] = Math.max(0, Math.min(100, G.stats[k]));
-  }
-  
-  // Death check
-  if (G.stats.health <= 0) {
-    die();
-  }
-  
-  // Update UI
-  document.getElementById('healthBar').style.width = G.stats.health + '%';
-  document.getElementById('hungerBar').style.width = G.stats.hunger + '%';
-  document.getElementById('warmthBar').style.width = G.stats.warmth + '%';
-  document.getElementById('energyBar').style.width = G.stats.energy + '%';
-  document.getElementById('moneyDisplay').textContent = G.money.toFixed(2) + '€';
-  document.getElementById('moneyBar').style.width = Math.min(G.money / 20 * 100, 100) + '%';
-  
-  // Color warnings
-  ['healthBar', 'hungerBar', 'warmthBar', 'energyBar'].forEach(id => {
-    const el = document.getElementById(id);
-    const val = parseFloat(el.style.width);
-    if (val < 20) el.style.opacity = 0.5 + Math.sin(Date.now() * 0.005) * 0.5;
-    else el.style.opacity = 1;
-  });
-}
-
-function updateGameTime(dt) {
-  G.gameTime += dt * G.timeSpeed;
-  if (G.gameTime >= 24 * 60) {
-    G.gameTime -= 24 * 60;
-    G.gameDay++;
-    document.getElementById('gameDay').textContent = `Tag ${G.gameDay}`;
-    showMessage(`🌅 Tag ${G.gameDay} beginnt`);
-  }
-  
-  const hours = Math.floor(G.gameTime / 60);
-  const mins = Math.floor(G.gameTime % 60);
-  document.getElementById('gameTime').textContent = `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
-  
-  // Lighting changes
-  const t = G.gameTime / 60;
-  let ambientIntensity, dirIntensity, bgColor;
-  
-  if (t >= 7 && t < 18) {
-    // Daytime
-    ambientIntensity = 1.2;
-    dirIntensity = 1.0;
-    bgColor = new THREE.Color('#8899aa');
-  } else if (t >= 18 && t < 21) {
-    // Sunset
-    const f = (t - 18) / 3;
-    ambientIntensity = 1.2 - f * 0.5;
-    dirIntensity = 1.0 - f * 0.5;
-    bgColor = new THREE.Color('#8899aa').lerp(new THREE.Color('#3a3040'), f);
-    dirLight.color.setHex(0xffcc88);
-  } else if (t >= 21 || t < 5) {
-    // Night
-    ambientIntensity = 0.5;
-    dirIntensity = 0.2;
-    bgColor = new THREE.Color('#1a1825');
-  } else {
-    // Sunrise
-    const f = (t - 5) / 2;
-    ambientIntensity = 0.5 + f * 0.7;
-    dirIntensity = 0.2 + f * 0.8;
-    bgColor = new THREE.Color('#1a1825').lerp(new THREE.Color('#8899aa'), f);
-  }
-  
-  ambientLight.intensity = ambientIntensity;
-  dirLight.intensity = dirIntensity;
-  scene.background = bgColor;
-  scene.fog.color = bgColor;
-}
-
-// Interaction
-function getInteractTarget() {
-  const forward = new THREE.Vector3(0, 0, -1);
-  forward.applyQuaternion(camera.quaternion);
-  
-  let closest = null;
-  let closestDist = Infinity;
-  
-  for (const item of G.interactables) {
-    if (!item.active) continue;
-    const toItem = new THREE.Vector3().subVectors(item.position, G.playerPos);
-    const dist = toItem.length();
-    if (dist > item.radius) continue;
-    
-    // Check if looking at it
-    toItem.normalize();
-    const dot = forward.dot(toItem);
-    if (dot < 0.5) continue; // Must be roughly looking at it
-    
-    if (dist < closestDist) {
-      closestDist = dist;
-      closest = item;
-    }
-  }
-  
-  return closest;
-}
-
-function handleInteraction() {
-  if (!G.interactTarget || G.shopOpen || G.notifOpen) return;
-  
-  const target = G.interactTarget;
-  
-  switch (target.type) {
-    case 'collectible':
-      collectItem(target);
-      break;
-    case 'trashbin':
-      searchTrash(target);
-      break;
-    case 'bench':
-      restOnBench();
-      break;
-    case 'spaeti':
-      openShop();
-      break;
-    case 'ubahn':
-      useUBahn();
-      break;
-    case 'npc':
-      talkToNPC(target.npcData);
-      break;
-  }
-}
-
-function collectItem(target) {
-  if (G.collected.has(target.id)) return;
-  G.collected.add(target.id);
-  target.active = false;
-  if (target.mesh) scene.remove(target.mesh);
-  
-  switch (target.subtype) {
-    case 'bottle':
-      G.money += 0.25;
-      showMessage('🍺 Pfandflasche gesammelt (+0.25€)');
-      addToInventory('🍺', 'Pfand');
-      break;
-    case 'food':
-      G.stats.hunger = Math.min(100, G.stats.hunger + 25);
-      showMessage('🥪 Essen gefunden! (Hunger +25)');
-      break;
-    case 'jacket':
-      G.stats.warmth = Math.min(100, G.stats.warmth + 20);
-      showMessage('🧥 Alte Jacke angezogen (Wärme +20)');
-      break;
-    case 'money':
-      const amount = Math.floor(Math.random() * 3 + 1) * 0.5;
-      G.money += amount;
-      showMessage(`💶 ${amount.toFixed(2)}€ gefunden!`);
-      break;
-    case 'bandage':
-      G.stats.health = Math.min(100, G.stats.health + 15);
-      showMessage('🩹 Verbandszeug benutzt (Leben +15)');
-      break;
-    case 'coffee':
-      G.stats.energy = Math.min(100, G.stats.energy + 10);
-      showMessage('☕ Kalter Kaffee getrunken (Energie +10)');
-      break;
-  }
-  
-  // Hand reach animation
-  animateHand();
-}
-
-function searchTrash(target) {
-  if (G.stats.energy < 5) {
-    showMessage('❌ Zu erschöpft zum Suchen');
-    return;
-  }
-  
-  G.stats.energy -= 5;
-  animateHand();
-  
-  const roll = Math.random();
-  if (roll < 0.3) {
-    G.money += 0.25;
-    showMessage('🍺 Pfandflasche im Müll gefunden! (+0.25€)');
-    addToInventory('🍺', 'Pfand');
-  } else if (roll < 0.5) {
-    G.stats.hunger = Math.min(100, G.stats.hunger + 10);
-    showMessage('🥪 Essensreste gefunden (Hunger +10)');
-  } else if (roll < 0.55) {
-    const amt = Math.floor(Math.random() * 2 + 1) * 0.5;
-    G.money += amt;
-    showMessage(`💶 ${amt.toFixed(2)}€ im Müll gefunden!`);
-  } else {
-    showMessage('🗑️ Nichts Brauchbares gefunden');
-  }
-  
-  // Cooldown
-  target.active = false;
-  setTimeout(() => { target.active = true; }, target.respawnTime * 1000);
-}
-
-function restOnBench() {
-  G.stats.energy = Math.min(100, G.stats.energy + 15);
-  G.stats.warmth -= 5;
-  showMessage('💤 Kurze Pause auf der Bank (Energie +15)');
-  // Time skip
-  G.gameTime += 30;
-}
-
-function useUBahn() {
-  if (G.money < 2.80) {
-    showMessage('❌ Nicht genug Geld (2.80€ nötig)');
-    return;
-  }
-  G.money -= 2.80;
-  G.stats.warmth = Math.min(100, G.stats.warmth + 20);
-  G.stats.energy -= 5;
-  showMessage('🚇 U-Bahn gefahren (Wärme +20, -2.80€)');
-  G.gameTime += 20;
-}
-
-function talkToNPC(npcData) {
-  if (npcData.interacted && Date.now() - G.lastNPCEncounter < 30000) {
-    showMessage('💬 "Lass mich in Ruhe..."');
-    return;
-  }
-  
-  G.lastNPCEncounter = Date.now();
-  npcData.interacted = true;
-  
-  const encounters = {
-    tourist: () => {
-      showNotification('👤 Tourist', 'Ein verlorener Tourist fragt nach dem Weg zum Brandenburger Tor.', [
-        { text: 'Helfen (Energie -5)', action: () => {
-          G.stats.energy -= 5;
-          if (Math.random() > 0.3) {
-            const tip = Math.floor(Math.random() * 3 + 1);
-            G.money += tip;
-            showMessage(`💶 Trinkgeld erhalten! (+${tip}.00€)`);
-          } else {
-            showMessage('👍 "Danke!" (kein Trinkgeld)');
-          }
-        }},
-        { text: 'Ignorieren', action: () => showMessage('🚶 Weitergegangen...') }
-      ]);
-    },
-    punk: () => {
-      showNotification('🎸 Punk', '"Hey Alter, hast du mal \'ne Kippe? Dafür hab ich nen Tipp für dich..."', [
-        { text: 'Zuhören', action: () => {
-          showMessage('💡 "Check den Müll beim Späti, da findest du immer was!"');
-          G.stats.energy -= 3;
-        }},
-        { text: 'Weitergehen', action: () => showMessage('🚶 "Pff, Spießer..."') }
-      ]);
-    },
-    hipster: () => {
-      showNotification('🧔 Hipster', '"Kennst du den neuen Laden um die Ecke? Die machen den besten Flat White..."', [
-        { text: 'Reden (Energie -5)', action: () => {
-          G.stats.energy -= 5;
-          showMessage('☕ Gutes Gespräch, aber teuer hier...');
-        }},
-        { text: 'Ablehnen', action: () => showMessage('🚶 Keine Zeit für Smalltalk') }
-      ]);
-    },
-    oma: () => {
-      showNotification('👵 Ältere Dame', '"Junger Mann, könnten Sie mir die Tüte tragen? Meine Hände..."', [
-        { text: 'Helfen', action: () => {
-          G.stats.energy -= 10;
-          G.money += 5;
-          G.stats.hunger = Math.min(100, G.stats.hunger + 15);
-          showMessage('🥰 "Hier, nimm das! Und iss was!" (+5€, Hunger +15)');
-        }},
-        { text: 'Ablehnen', action: () => showMessage('😔 "Die Jugend von heute..."') }
-      ]);
-    },
-    musician: () => {
-      showNotification('🎵 Straßenmusiker', 'Ein Musiker spielt Gitarre und singt "99 Luftballons". Der Hut liegt da...', [
-        { text: 'Spende 1€', action: () => {
-          if (G.money < 1) { showMessage('❌ Nicht genug Geld'); return; }
-          G.money -= 1;
-          showMessage('🎵 "Danke! Hier, nimm nen Schluck!" (Wärme +10)');
-          G.stats.warmth = Math.min(100, G.stats.warmth + 10);
-        }},
-        { text: 'Zuhören', action: () => {
-          G.stats.energy += 5;
-          showMessage('🎵 Gute Musik hebt die Stimmung (Energie +5)');
-        }},
-        { text: 'Weitergehen', action: () => {} }
-      ]);
-    },
-    dealer: () => {
-      showNotification('🕶️ Verdächtige Person', '"Psst... brauchst du was? Ich kann dir helfen, Bruder..."', [
-        { text: 'Ignorieren', action: () => showMessage('🚶 Besser Abstand halten...') },
-        { text: 'Ansprechen', action: () => {
-          if (Math.random() > 0.5) {
-            showMessage('⚠️ "Verschwinde, bevor die Bullen kommen!" (Stress!)');
-            G.stats.health -= 5;
-          } else {
-            showMessage('💊 "Hier, gratis Probe..." (Ablehnung)');
-          }
-        }}
-      ]);
-    }
-  };
-  
-  const fn = encounters[npcData.type];
-  if (fn) fn();
-  
-  // Reset after cooldown
-  setTimeout(() => { npcData.interacted = false; }, 60000);
-}
-
-// Shop
-function openShop() {
-  G.shopOpen = true;
-  G.paused = true;
-  document.getElementById('shopUI').style.display = 'flex';
-  if (G.isPointerLocked) document.exitPointerLock();
-  
-  const items = [
-    { name: 'Brötchen', emoji: '🥐', price: 1.50, effect: 'Hunger +30', action: () => { G.stats.hunger = Math.min(100, G.stats.hunger + 30); }},
-    { name: 'Döner', emoji: '🥙', price: 4.50, effect: 'Hunger +60', action: () => { G.stats.hunger = Math.min(100, G.stats.hunger + 60); }},
-    { name: 'Kaffee', emoji: '☕', price: 2.00, effect: 'Energie +25, Wärme +10', action: () => { G.stats.energy = Math.min(100, G.stats.energy + 25); G.stats.warmth = Math.min(100, G.stats.warmth + 10); }},
-    { name: 'Bier', emoji: '🍺', price: 1.50, effect: 'Wärme +15, Energie -10', action: () => { G.stats.warmth = Math.min(100, G.stats.warmth + 15); G.stats.energy = Math.max(0, G.stats.energy - 10); }},
-    { name: 'Verbandszeug', emoji: '🩹', price: 3.00, effect: 'Leben +25', action: () => { G.stats.health = Math.min(100, G.stats.health + 25); }},
-    { name: 'Handschuhe', emoji: '🧤', price: 5.00, effect: 'Wärme +30', action: () => { G.stats.warmth = Math.min(100, G.stats.warmth + 30); }},
-    { name: 'Energy Drink', emoji: '⚡', price: 2.50, effect: 'Energie +40', action: () => { G.stats.energy = Math.min(100, G.stats.energy + 40); }},
-    { name: 'Suppe', emoji: '🍲', price: 3.50, effect: 'Hunger +40, Wärme +15', action: () => { G.stats.hunger = Math.min(100, G.stats.hunger + 40); G.stats.warmth = Math.min(100, G.stats.warmth + 15); }},
-  ];
-  
-  const container = document.getElementById('shopItems');
-  container.innerHTML = '';
-  
-  items.forEach(item => {
-    const el = document.createElement('div');
-    el.className = 'shop-item';
-    el.innerHTML = `<div class="emoji">${item.emoji}</div><div class="name">${item.name}</div><div class="price">${item.price.toFixed(2)}€</div><div class="effect">${item.effect}</div>`;
-    el.addEventListener('click', () => {
-      if (G.money >= item.price) {
-        G.money -= item.price;
-        item.action();
-        showMessage(`🛒 ${item.name} gekauft (-${item.price.toFixed(2)}€)`);
-        // Refresh money display
-        document.getElementById('moneyDisplay').textContent = G.money.toFixed(2) + '€';
-      } else {
-        showMessage('❌ Nicht genug Geld!');
-      }
-    });
-    container.appendChild(el);
-  });
-}
-
-function closeShop() {
-  G.shopOpen = false;
-  G.paused = false;
-  document.getElementById('shopUI').style.display = 'none';
-}
-
-document.getElementById('closeShop').addEventListener('click', closeShop);
-
-// Notifications
-function showNotification(title, text, choices) {
-  G.notifOpen = true;
-  G.paused = true;
-  if (G.isPointerLocked) document.exitPointerLock();
-  
-  document.getElementById('notifTitle').textContent = title;
-  document.getElementById('notifText').textContent = text;
-  
-  const container = document.getElementById('notifChoices');
-  container.innerHTML = '';
-  
-  choices.forEach(c => {
-    const btn = document.createElement('div');
-    btn.className = 'choice-btn';
-    btn.textContent = c.text;
-    btn.addEventListener('click', () => {
-      c.action();
-      closeNotification();
-    });
-    container.appendChild(btn);
-  });
-  
-  document.getElementById('notification').style.display = 'block';
-}
-
-function closeNotification() {
-  G.notifOpen = false;
-  G.paused = false;
-  document.getElementById('notification').style.display = 'none';
-}
-
-// Inventory
-function addToInventory(emoji, name) {
-  if (G.inventory.length < G.maxInventory) {
-    const existing = G.inventory.find(i => i.name === name);
-    if (existing) {
-      existing.count++;
-    } else {
-      G.inventory.push({ emoji, name, count: 1 });
-    }
-    updateInventoryUI();
-  }
-}
-
-function updateInventoryUI() {
-  const container = document.getElementById('inventory');
-  container.innerHTML = '';
-  G.inventory.forEach(item => {
-    const slot = document.createElement('div');
-    slot.className = 'inv-slot';
-    slot.textContent = item.emoji;
-    if (item.count > 1) {
-      const count = document.createElement('div');
-      count.className = 'count';
-      count.textContent = item.count;
-      slot.appendChild(count);
-    }
-    container.appendChild(slot);
-  });
-}
-
-// Hand animation
-let handAnimTime = 0;
-let handAnimating = false;
-
-function animateHand() {
-  handAnimating = true;
-  handAnimTime = 0;
-}
-
-// Death
-function die() {
-  G.dead = true;
-  const ds = document.getElementById('deathScreen');
-  ds.style.display = 'flex';
-  requestAnimationFrame(() => ds.classList.add('active'));
-  
-  ds.querySelector('.restart').addEventListener('click', () => {
-    location.reload();
-  });
-}
-
-// ============================================================
-// NPC MOVEMENT
-// ============================================================
-function updateNPCs(dt) {
-  for (const npc of G.npcs) {
-    if (npc.isWalking) {
-      npc.walkTimer += dt;
-      
-      const newX = npc.position.x + npc.walkDir.x * npc.walkSpeed * dt;
-      const newZ = npc.position.z + npc.walkDir.z * npc.walkSpeed * dt;
-      
-      // Keep within bounds
-      if (Math.abs(newX) < 80 && Math.abs(newZ) < 80) {
-        // Check collision
-        const testPos = new THREE.Vector3(newX, 1, newZ);
-        if (!checkCollision(testPos, 0.5)) {
-          npc.position.x = newX;
-          npc.position.z = newZ;
-        } else {
-          npc.walkDir.x = -npc.walkDir.x + (Math.random() - 0.5);
-          npc.walkDir.z = -npc.walkDir.z + (Math.random() - 0.5);
-          npc.walkDir.normalize();
+            createWorld();
+            createLighting();
+            setupControls();
+            animate();
         }
-      } else {
-        npc.walkDir.multiplyScalar(-1);
-      }
-      
-      npc.group.position.set(npc.position.x, 0, npc.position.z);
-      npc.group.rotation.y = Math.atan2(npc.walkDir.x, npc.walkDir.z);
-      
-      // Leg animation
-      const legSwing = Math.sin(npc.walkTimer * 5) * 0.3;
-      if (npc.group.children[2]) npc.group.children[2].rotation.x = legSwing;
-      if (npc.group.children[3]) npc.group.children[3].rotation.x = -legSwing;
-      
-      if (npc.walkTimer >= npc.walkDuration) {
-        npc.isWalking = false;
-        npc.pauseTimer = 0;
-      }
-    } else {
-      npc.pauseTimer += dt;
-      if (npc.pauseTimer >= npc.pauseDuration) {
-        npc.isWalking = true;
-        npc.walkTimer = 0;
-        npc.walkDir.set((Math.random() - 0.5) * 2, 0, (Math.random() - 0.5) * 2).normalize();
-        npc.walkDuration = 3 + Math.random() * 5;
-      }
-    }
-  }
-}
 
-// ============================================================
-// MINIMAP
-// ============================================================
-function updateMinimap() {
-  const canvas = document.getElementById('minimapCanvas');
-  const ctx = canvas.getContext('2d');
-  const w = canvas.width, h = canvas.height;
-  const scale = 0.7;
-  
-  ctx.fillStyle = '#1a1a1a';
-  ctx.fillRect(0, 0, w, h);
-  
-  // Streets
-  ctx.fillStyle = '#333';
-  ctx.fillRect(w / 2 - 3, 0, 6, h);
-  ctx.fillRect(0, h / 2 - 3, w, 6);
-  
-  // Buildings (simplified)
-  ctx.fillStyle = '#4a4040';
-  G.buildings.forEach(b => {
-    const bx = w / 2 + (b.x - G.playerPos.x) * scale;
-    const bz = h / 2 + (b.z - G.playerPos.z) * scale;
-    const bw = b.w * scale;
-    const bd = b.d * scale;
-    if (bx > -20 && bx < w + 20 && bz > -20 && bz < h + 20) {
-      ctx.fillRect(bx - bw / 2, bz - bd / 2, bw, bd);
-    }
-  });
-  
-  // NPCs
-  ctx.fillStyle = '#3498db';
-  G.npcs.forEach(npc => {
-    const nx = w / 2 + (npc.position.x - G.playerPos.x) * scale;
-    const nz = h / 2 + (npc.position.z - G.playerPos.z) * scale;
-    if (nx > 0 && nx < w && nz > 0 && nz < h) {
-      ctx.beginPath();
-      ctx.arc(nx, nz, 2, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  });
-  
-  // Player (center with direction)
-  ctx.fillStyle = '#e8c547';
-  ctx.beginPath();
-  ctx.arc(w / 2, h / 2, 3, 0, Math.PI * 2);
-  ctx.fill();
-  
-  // Direction indicator
-  ctx.strokeStyle = '#e8c547';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(w / 2, h / 2);
-  ctx.lineTo(w / 2 - Math.sin(G.yaw) * 8, h / 2 - Math.cos(G.yaw) * 8);
-  ctx.stroke();
-}
+        function createWorld() {
+            // Ground
+            const groundGeometry = new THREE.PlaneGeometry(50, 50);
+            const groundMaterial = new THREE.MeshLambertMaterial({ color: 0x666666 });
+            const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+            ground.rotation.x = -Math.PI / 2;
+            scene.add(ground);
 
-// ============================================================
-// GAME LOOP
-// ============================================================
-const clock = new THREE.Clock();
+            // Simple buildings
+            const buildingColors = [0x8B4513, 0x556B2F, 0x483D8B, 0x8B0000, 0x2F4F4F, 0x800080];
+            
+            for (let i = 0; i < 8; i++) {
+                const buildingGeometry = new THREE.BoxGeometry(
+                    4 + Math.random() * 3,
+                    6 + Math.random() * 8,
+                    4 + Math.random() * 3
+                );
+                const buildingMaterial = new THREE.MeshLambertMaterial({ 
+                    color: buildingColors[i % buildingColors.length]
+                });
+                const building = new THREE.Mesh(buildingGeometry, buildingMaterial);
+                
+                // Position buildings in a grid around the player
+                const angle = (i / 8) * Math.PI * 2;
+                building.position.x = Math.cos(angle) * (15 + Math.random() * 10);
+                building.position.z = Math.sin(angle) * (15 + Math.random() * 10);
+                building.position.y = building.geometry.parameters.height / 2;
+                
+                buildings.push(building);
+                scene.add(building);
+            }
 
-function update() {
-  if (!G.started || G.dead || G.paused) return;
-  
-  const dt = Math.min(clock.getDelta(), 0.05);
-  
-  // Input
-  if (!G.isMobile) {
-    G.moveInput.x = 0;
-    G.moveInput.z = 0;
-    if (keys['KeyW'] || keys['ArrowUp']) G.moveInput.z = -1;
-    if (keys['KeyS'] || keys['ArrowDown']) G.moveInput.z = 1;
-    if (keys['KeyA'] || keys['ArrowLeft']) G.moveInput.x = -1;
-    if (keys['KeyD'] || keys['ArrowRight']) G.moveInput.x = 1;
-    G.sprinting = keys['ShiftLeft'] || keys['ShiftRight'];
-  }
-  
-  // Movement
-  const speed = G.sprinting ? 6 : 3;
-  const moveVec = new THREE.Vector3(G.moveInput.x, 0, G.moveInput.z);
-  if (moveVec.length() > 0) {
-    moveVec.normalize();
-    
-    // Rotate movement by yaw
-    const cos = Math.cos(G.yaw);
-    const sin = Math.sin(G.yaw);
-    const rx = moveVec.x * cos - moveVec.z * sin;
-    const rz = moveVec.x * sin + moveVec.z * cos;
-    
-    const newPos = G.playerPos.clone();
-    newPos.x += rx * speed * dt;
-    newPos.z += rz * speed * dt;
-    
-    // Collision
-    const col = checkCollision(newPos);
-    if (col) {
-      // Slide along wall
-      const pushX = newPos.x - col.closestX;
-      const pushZ = newPos.z - col.closestZ;
-      const pushLen = Math.sqrt(pushX * pushX + pushZ * pushZ);
-      if (pushLen > 0.001) {
-        newPos.x = col.closestX + (pushX / pushLen) * 0.31;
-        newPos.z = col.closestZ + (pushZ / pushLen) * 0.31;
-      }
-    }
-    
-    // Bounds
-    newPos.x = Math.max(-95, Math.min(95, newPos.x));
-    newPos.z = Math.max(-95, Math.min(95, newPos.z));
-    
-    G.playerPos.copy(newPos);
-    
-    // Head bob
-    G.headBob += dt * (G.sprinting ? 12 : 8);
-    G.playerPos.y = 1.7 + Math.sin(G.headBob) * (G.sprinting ? 0.06 : 0.03);
-    
-    // Footstep phase
-    G.footstepPhase += dt * (G.sprinting ? 5 : 3);
-  } else {
-    // Settle camera height
-    G.playerPos.y += (1.7 - G.playerPos.y) * 0.1;
-  }
-  
-  // Camera
-  camera.position.copy(G.playerPos);
-  camera.rotation.order = 'YXZ';
-  camera.rotation.y = G.yaw;
-  camera.rotation.x = G.pitch;
-  
-  // Hand animation
-  if (handAnimating) {
-    handAnimTime += dt * 4;
-    const reach = Math.sin(handAnimTime * Math.PI);
-    handGroup.position.z = -reach * 0.3;
-    handGroup.position.y = reach * 0.1;
-    if (handAnimTime >= 1) {
-      handAnimating = false;
-      handGroup.position.set(0, 0, 0);
-    }
-  }
-  
-  // Subtle hand sway
-  const sway = Math.sin(Date.now() * 0.002) * 0.005;
-  const moveSway = Math.sin(G.footstepPhase) * 0.015;
-  if (!handAnimating) {
-    handGroup.rotation.z = sway + moveSway;
-    handGroup.position.y = Math.sin(G.footstepPhase * 0.5) * 0.005;
-  }
-  
-  // Interaction check
-  G.interactTarget = getInteractTarget();
-  const prompt = document.getElementById('interactPrompt');
-  const crosshair = document.getElementById('crosshair');
-  
-  if (G.interactTarget) {
-    prompt.style.opacity = '1';
-    document.getElementById('interactLabel').textContent = G.interactTarget.label;
-    crosshair.className = 'active';
-  } else {
-    prompt.style.opacity = '0';
-    crosshair.className = '';
-  }
-  
-  // Game systems
-  updateStats(dt);
-  updateGameTime(dt);
-  updateNPCs(dt);
-  
-  // Message cleanup
-  const now = Date.now();
-  G.messages = G.messages.filter(m => {
-    if (now > m.time) {
-      m.el.style.opacity = '0';
-      m.el.style.transition = 'opacity 0.5s';
-      setTimeout(() => m.el.remove(), 500);
-      return false;
-    }
-    return true;
-  });
-  
-  // Respawn collectibles periodically
-  if (Math.random() < dt * 0.02) {
-    const types = ['bottle', 'food', 'coffee', 'bandage'];
-    const type = types[Math.floor(Math.random() * types.length)];
-    const angle = Math.random() * Math.PI * 2;
-    const dist = 8 + Math.random() * 60;
-    const x = Math.cos(angle) * dist;
-    const z = Math.sin(angle) * dist;
-    const id = `spawn_${Date.now()}`;
-    // Don't spawn inside buildings
-    if (!checkCollision(new THREE.Vector3(x, 1, z), 1)) {
-      createCollectible(x, z, type, id);
-    }
-  }
-  
-  // Update minimap less frequently
-  if (Math.floor(Date.now() / 200) % 1 === 0) {
-    updateMinimap();
-  }
-}
+            // Street items
+            const trashColors = [0xFF6B35, 0x4ECDC4, 0x45B7D1, 0x96CEB4];
+            
+            for (let i = 0; i < 6; i++) {
+                const trashGeometry = new THREE.CylinderGeometry(0.6, 0.8, 1.2, 8);
+                const trashMaterial = new THREE.MeshLambertMaterial({ 
+                    color: trashColors[i % trashColors.length]
+                });
+                const trash = new THREE.Mesh(trashGeometry, trashMaterial);
+                
+                trash.position.x = (Math.random() - 0.5) * 30;
+                trash.position.z = (Math.random() - 0.5) * 30;
+                trash.position.y = 0.6;
+                
+                streetItems.push(trash);
+                scene.add(trash);
+            }
+        }
 
-function render() {
-  requestAnimationFrame(render);
-  update();
-  renderer.render(scene, camera);
-}
+        function createLighting() {
+            // Bright ambient light
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.8);
+            scene.add(ambientLight);
 
-// ============================================================
-// LOADING & START
-// ============================================================
-const loadBar = document.getElementById('loadBar');
-let loadProgress = 0;
+            // Directional light
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+            directionalLight.position.set(10, 15, 5);
+            scene.add(directionalLight);
+        }
 
-function simulateLoading() {
-  loadProgress += Math.random() * 15 + 5;
-  if (loadProgress > 100) loadProgress = 100;
-  loadBar.style.width = loadProgress + '%';
-  
-  if (loadProgress >= 100) {
-    // Build world during "loading"
-    buildWorld();
-    
-    setTimeout(() => {
-      document.getElementById('loading').style.opacity = '0';
-      setTimeout(() => {
-        document.getElementById('loading').style.display = 'none';
-        document.getElementById('startScreen').style.display = 'flex';
-      }, 500);
-    }, 300);
-  } else {
-    setTimeout(simulateLoading, 100 + Math.random() * 200);
-  }
-}
+        function setupControls() {
+            const canvas = document.getElementById('gameCanvas');
+            
+            // Desktop mouse controls
+            canvas.addEventListener('click', () => {
+                if (!isPointerLocked) {
+                    canvas.requestPointerLock();
+                }
+            });
 
-document.getElementById('startScreen').addEventListener('click', () => {
-  document.getElementById('startScreen').style.display = 'none';
-  G.started = true;
-  clock.start();
-  showMessage('🏙️ Willkommen auf den Straßen von Berlin');
-  showMessage('💡 Durchsuche Mülleimer, sammle Pfand, überlebe!');
-  
-  if (!G.isMobile) {
-    renderer.domElement.requestPointerLock();
-  }
-});
+            document.addEventListener('pointerlockchange', () => {
+                isPointerLocked = document.pointerLockElement === canvas;
+            });
 
-// Resize handler
-window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-});
+            document.addEventListener('mousemove', (event) => {
+                if (isPointerLocked) {
+                    yaw -= event.movementX * mouseSensitivity;
+                    pitch -= event.movementY * mouseSensitivity;
+                    pitch = Math.max(-Math.PI/2, Math.min(Math.PI/2, pitch));
+                }
+            });
 
-// Prevent default touch behaviors
-document.addEventListener('touchmove', e => {
-  if (e.target === renderer.domElement) e.preventDefault();
-}, { passive: false });
+            // MOBILE TOUCH CONTROLS - FIXED VERSION
+            canvas.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                
+                if (e.touches.length === 1) {
+                    isTouchLooking = true;
+                    lastTouchX = e.touches[0].clientX;
+                    lastTouchY = e.touches[0].clientY;
+                }
+            }, { passive: false });
 
-// Start
-simulateLoading();
-render();
+            canvas.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+                
+                if (isTouchLooking && e.touches.length === 1) {
+                    const deltaX = e.touches[0].clientX - lastTouchX;
+                    const deltaY = e.touches[0].clientY - lastTouchY;
+                    
+                    // Apply rotation - FIXED SENSITIVITY
+                    yaw -= deltaX * touchSensitivity;
+                    pitch -= deltaY * touchSensitivity;
+                    pitch = Math.max(-Math.PI/2, Math.min(Math.PI/2, pitch));
+                    
+                    lastTouchX = e.touches[0].clientX;
+                    lastTouchY = e.touches[0].clientY;
+                }
+            }, { passive: false });
 
-</script>
+            canvas.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                isTouchLooking = false;
+            }, { passive: false });
+
+            // Keyboard controls
+            document.addEventListener('keydown', (event) => {
+                switch(event.code) {
+                    case 'KeyW': moveForward = true; break;
+                    case 'KeyS': moveBackward = true; break;
+                    case 'KeyA': moveLeft = true; break;
+                    case 'KeyD': moveRight = true; break;
+                }
+            });
+
+            document.addEventListener('keyup', (event) => {
+                switch(event.code) {
+                    case 'KeyW': moveForward = false; break;
+                    case 'KeyS': moveBackward = false; break;
+                    case 'KeyA': moveLeft = false; break;
+                    case 'KeyD': moveRight = false; break;
+                }
+            });
+
+            // Mobile joystick
+            setupJoystick();
+        }
+
+        function setupJoystick() {
+            const joystick = document.getElementById('movement-joystick');
+            const outer = joystick.querySelector('.joystick-outer');
+            const inner = joystick.querySelector('.joystick-inner');
+            
+            let startX = 0, startY = 0;
+            
+            joystick.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                joystickActive = true;
+                const rect = outer.getBoundingClientRect();
+                startX = rect.left + rect.width / 2;
+                startY = rect.top + rect.height / 2;
+            });
+            
+            joystick.addEventListener('touchmove', (e) => {
+                if (!joystickActive) return;
+                e.preventDefault();
+                
+                const touch = e.touches[0];
+                const deltaX = touch.clientX - startX;
+                const deltaY = touch.clientY - startY;
+                
+                const distance = Math.min(50, Math.sqrt(deltaX * deltaX + deltaY * deltaY));
+                const angle = Math.atan2(deltaY, deltaX);
+                
+                const x = Math.cos(angle) * distance;
+                const y = Math.sin(angle) * distance;
+                
+                inner.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
+                
+                joystickVector.x = x / 50;
+                joystickVector.y = y / 50;
+            });
+            
+            joystick.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                joystickActive = false;
+                inner.style.transform = 'translate(-50%, -50%)';
+                joystickVector.x = 0;
+                joystickVector.y = 0;
+            });
+        }
+
+        function updateMovement() {
+            const direction = new THREE.Vector3();
+            const right = new THREE.Vector3();
+            
+            // Calculate movement direction
+            camera.getWorldDirection(direction);
+            right.crossVectors(camera.up, direction).normalize();
+            
+            const moveVector = new THREE.Vector3();
+            
+            // Desktop movement
+            if (moveForward) moveVector.add(direction);
+            if (moveBackward) moveVector.sub(direction);
+            if (moveLeft) moveVector.add(right);
+            if (moveRight) moveVector.sub(right);
+            
+            // Mobile joystick movement
+            if (joystickActive) {
+                moveVector.add(direction.clone().multiplyScalar(-joystickVector.y));
+                moveVector.add(right.clone().multiplyScalar(-joystickVector.x));
+            }
+            
+            // Apply movement
+            if (moveVector.length() > 0) {
+                moveVector.normalize().multiplyScalar(moveSpeed);
+                position.add(moveVector);
+            }
+            
+            // Update camera position and rotation
+            camera.position.copy(position);
+            camera.rotation.order = 'YXZ';
+            camera.rotation.y = yaw;
+            camera.rotation.x = pitch;
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            if (gameState.playing) {
+                updateMovement();
+            }
+            
+            renderer.render(scene, camera);
+        }
+
+        function startGame() {
+            gameState.playing = true;
+            document.getElementById('start-screen').style.display = 'none';
+            document.getElementById('stats').style.display = 'block';
+            document.getElementById('controls').style.display = 'flex';
+            document.getElementById('instructions').style.display = 'block';
+            
+            // Show mobile joystick on touch devices
+            if ('ontouchstart' in window) {
+                document.getElementById('movement-joystick').style.display = 'block';
+            }
+            
+            updateUI();
+        }
+
+        function doAction(action) {
+            if (gameState.energy <= 10) {
+                alert('Du bist zu müde!');
+                return;
+            }
+            
+            let message = '';
+            
+            switch(action) {
+                case 'search':
+                    gameState.energy -= 10;
+                    if (Math.random() < 0.6) {
+                        const found = Math.floor(Math.random() * 3) + 1;
+                        gameState.money += found * 0.25;
+                        message = `Du findest ${found} Pfandflaschen! (+${(found * 0.25).toFixed(2)}€)`;
+                    } else {
+                        gameState.health -= 10;
+                        message = 'Du schneidest dich an Scherben!';
+                    }
+                    break;
+                    
+                case 'rest':
+                    gameState.energy = Math.min(100, gameState.energy + 30);
+                    gameState.health = Math.min(100, gameState.health + 10);
+                    message = 'Du ruhst dich aus.';
+                    break;
+                    
+                case 'beg':
+                    gameState.energy -= 8;
+                    const earned = Math.random() < 0.4 ? Math.floor(Math.random() * 3) + 1 : 0;
+                    if (earned > 0) {
+                        gameState.money += earned;
+                        message = `Jemand gibt dir ${earned}€!`;
+                    } else {
+                        message = 'Niemand gibt dir Geld.';
+                    }
+                    break;
+            }
+            
+            updateUI();
+            if (message) alert(message);
+        }
+
+        function updateUI() {
+            document.getElementById('health-bar').style.width = gameState.health + '%';
+            document.getElementById('health-text').textContent = gameState.health;
+            
+            document.getElementById('hunger-bar').style.width = gameState.hunger + '%';
+            document.getElementById('hunger-text').textContent = gameState.hunger;
+            
+            document.getElementById('warmth-bar').style.width = gameState.warmth + '%';
+            document.getElementById('warmth-text').textContent = gameState.warmth;
+            
+            document.getElementById('energy-bar').style.width = gameState.energy + '%';
+            document.getElementById('energy-text').textContent = gameState.energy;
+            
+            document.getElementById('money-text').textContent = gameState.money.toFixed(2) + '€';
+        }
+
+        // Window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Initialize
+        window.addEventListener('load', () => {
+            init3D();
+        });
+    </script>
 </body>
 </html>
