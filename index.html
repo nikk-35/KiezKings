@@ -206,6 +206,41 @@ body {
   right: 150px;
 }
 
+/* Police Alert UI */
+#policeAlert {
+  position: fixed;
+  top: 50px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 300;
+  background: rgba(255, 0, 0, 0.9);
+  border: 2px solid #FF0000;
+  border-radius: 8px;
+  padding: 8px 16px;
+  display: none;
+  animation: pulse 1s infinite;
+  color: white;
+  font-weight: bold;
+  letter-spacing: 0.1em;
+}
+
+/* Hiding Status */
+#hidingStatus {
+  position: fixed;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 250;
+  background: rgba(0, 128, 0, 0.8);
+  border: 1px solid #00AA00;
+  border-radius: 6px;
+  padding: 6px 12px;
+  display: none;
+  color: white;
+  font-size: clamp(0.7rem, 1.6vw, 0.8rem);
+  letter-spacing: 0.1em;
+}
+
 /* Messages */
 #messageLog {
   position: fixed;
@@ -738,6 +773,16 @@ body {
     <div class="time" id="beggingTime">Zeit: 0:00</div>
     <div style="color: #999; font-size: 0.6rem; margin-top: 8px;">B drücken zum Aufhören</div>
   </div>
+  
+  <!-- Police Alert -->
+  <div id="policeAlert">
+    🚔 POLIZEI IN DER NÄHE!
+  </div>
+  
+  <!-- Hiding Status -->
+  <div id="hidingStatus">
+    🫥 VERSTECKT
+  </div>
 
   <!-- Touch Controls -->
   <div id="touchControls">
@@ -918,7 +963,14 @@ const GameState = {
   
   // Combat System
   isInCombat: false,
-  combatTarget: null
+  combatTarget: null,
+  
+  // Police System
+  policeNPCs: [],
+  policeSpawnTimer: 0,
+  isHidden: false,
+  hidingSpot: null,
+  lastSeenByPolice: 0
 };
 
 // Loading System
@@ -1328,6 +1380,139 @@ function spawnBerlinNPCs() {
   
   npcPositions.forEach(npcData => {
     createBerlinNPC(npcData.x, npcData.z, npcData.type);
+  });
+}
+
+function spawnPoliceNPC(x, z) {
+  const group = new THREE.Group();
+  
+  // Police body (navy blue uniform)
+  const bodyGeometry = new THREE.CylinderGeometry(0.25, 0.3, 0.8, 8);
+  const bodyMaterial = new THREE.MeshLambertMaterial({ color: '#1a237e' });
+  const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+  body.position.y = 1.1;
+  group.add(body);
+  
+  // Head (uniform skin tone)
+  const headGeometry = new THREE.SphereGeometry(0.18, 8, 6);
+  const headMaterial = new THREE.MeshLambertMaterial({ color: '#FDBCB4' });
+  const head = new THREE.Mesh(headGeometry, headMaterial);
+  head.position.y = 1.65;
+  group.add(head);
+  
+  // Police cap
+  const capGeometry = new THREE.CylinderGeometry(0.20, 0.19, 0.08, 8);
+  const capMaterial = new THREE.MeshLambertMaterial({ color: '#0d1b5a' });
+  const cap = new THREE.Mesh(capGeometry, capMaterial);
+  cap.position.y = 1.75;
+  group.add(cap);
+  
+  // Police badge/star
+  const badgeGeometry = new THREE.CylinderGeometry(0.03, 0.03, 0.02, 5);
+  const badgeMaterial = new THREE.MeshLambertMaterial({ color: '#FFD700' });
+  const badge = new THREE.Mesh(badgeGeometry, badgeMaterial);
+  badge.position.set(0, 1.4, 0.25);
+  group.add(badge);
+  
+  // Legs (black pants)
+  const legGeometry = new THREE.CylinderGeometry(0.09, 0.11, 0.7, 6);
+  const pantsMaterial = new THREE.MeshLambertMaterial({ color: '#1a1a2e' });
+  const legs = [];
+  [-0.12, 0.12].forEach((offset, index) => {
+    const leg = new THREE.Mesh(legGeometry, pantsMaterial);
+    leg.position.set(offset, 0.35, 0);
+    leg.userData.originalY = 0.35;
+    leg.userData.isLeft = index === 0;
+    legs.push(leg);
+    group.add(leg);
+  });
+  
+  // Store legs reference for animation
+  group.userData.legs = legs;
+  
+  group.position.set(x, 0, z);
+  scene.add(group);
+  
+  const policeNPC = {
+    group,
+    position: new THREE.Vector3(x, 0, z),
+    type: 'police',
+    walkDir: new THREE.Vector3(
+      Math.random() - 0.5,
+      0,
+      Math.random() - 0.5
+    ).normalize(),
+    walkSpeed: 0.6, // Slightly faster than civilians
+    nextTargetTime: Math.random() * 8 + 2,
+    behaviorState: 'patrol', // patrol, chase, search
+    
+    // Animation state
+    walkCycle: 0,
+    isMoving: false,
+    lastPosition: new THREE.Vector3(x, 0, z),
+    
+    // Police-specific
+    patrolTarget: null,
+    lastSeenPlayer: null,
+    alertLevel: 0, // 0-100
+    searchRadius: 15,
+    viewDistance: 20,
+    isChasing: false
+  };
+  
+  GameState.policeNPCs.push(policeNPC);
+  
+  console.log(`🚔 Police spawned at (${x}, ${z})`);
+  return policeNPC;
+}
+
+function updatePoliceSystem(deltaTime) {
+  // Spawn police based on wanted level
+  if (GameState.wantedLevel > 0) {
+    GameState.policeSpawnTimer -= deltaTime;
+    
+    // Spawn frequency based on wanted level
+    const spawnInterval = Math.max(20 - (GameState.wantedLevel * 3), 5); // 5-20 seconds
+    const maxPolice = Math.min(GameState.wantedLevel * 2, 8); // Max 8 police
+    
+    if (GameState.policeSpawnTimer <= 0 && GameState.policeNPCs.length < maxPolice) {
+      // Spawn police at random edges of map
+      const edge = Math.floor(Math.random() * 4);
+      let spawnX, spawnZ;
+      
+      switch (edge) {
+        case 0: // Top
+          spawnX = Math.random() * 200 - 100;
+          spawnZ = -100;
+          break;
+        case 1: // Right
+          spawnX = 100;
+          spawnZ = Math.random() * 200 - 100;
+          break;
+        case 2: // Bottom
+          spawnX = Math.random() * 200 - 100;
+          spawnZ = 100;
+          break;
+        case 3: // Left
+          spawnX = -100;
+          spawnZ = Math.random() * 200 - 100;
+          break;
+      }
+      
+      spawnPoliceNPC(spawnX, spawnZ);
+      GameState.policeSpawnTimer = spawnInterval + Math.random() * 5;
+    }
+  }
+  
+  // Update each police NPC
+  GameState.policeNPCs.forEach((police, index) => {
+    updatePoliceNPC(police, deltaTime);
+    
+    // Remove police if wanted level is 0
+    if (GameState.wantedLevel === 0) {
+      scene.remove(police.group);
+      GameState.policeNPCs.splice(index, 1);
+    }
   });
 }
 
@@ -1776,6 +1961,18 @@ function updateGame(deltaTime) {
   // Update NPCs
   updateNPCs(deltaTime);
   
+  // Update police system
+  updatePoliceSystem(deltaTime);
+  
+  // Update wanted level decay (if hidden long enough)
+  if (GameState.isHidden && GameState.wantedLevel > 0) {
+    const currentTime = Date.now();
+    if (currentTime - GameState.lastSeenByPolice > 60000) { // 60 seconds hidden
+      decreaseWantedLevel();
+      GameState.lastSeenByPolice = currentTime; // Reset timer
+    }
+  }
+  
   // Update game time
   updateGameTime(deltaTime);
   
@@ -1787,6 +1984,9 @@ function updateGame(deltaTime) {
   
   // Update interaction prompts
   updateInteractionPrompts();
+  
+  // Update police UI
+  updatePoliceUI();
   
   // Update camera
   updateCamera();
@@ -2445,13 +2645,50 @@ function drawKiezMap() {
     }
   });
   
-  // Player
-  ctx.fillStyle = '#00FF00';
+  // Police NPCs (red with badge)
+  ctx.fillStyle = '#FF0000';
+  GameState.policeNPCs.forEach(police => {
+    const px = w/2 + (police.position.x * scale);
+    const pz = h/2 + (police.position.z * scale);
+    if (px > 0 && px < w && pz > 0 && pz < h) {
+      // Police dot
+      ctx.beginPath();
+      ctx.arc(px, pz, 4, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Police badge (yellow center)
+      ctx.fillStyle = '#FFD700';
+      ctx.beginPath();
+      ctx.arc(px, pz, 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#FF0000';
+      
+      // Chase indicator
+      if (police.isChasing) {
+        ctx.strokeStyle = '#FF0000';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(px, pz, 8, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+  });
+  
+  // Player (color based on hiding status)
+  ctx.fillStyle = GameState.isHidden ? '#00AA00' : '#00FF00'; // Darker green when hidden
   const px = w/2 + (GameState.playerPosition.x * scale);
   const pz = h/2 + (GameState.playerPosition.z * scale);
   ctx.beginPath();
   ctx.arc(px, pz, 4, 0, Math.PI * 2);
   ctx.fill();
+  
+  // Hiding indicator
+  if (GameState.isHidden) {
+    ctx.fillStyle = 'rgba(0, 255, 0, 0.3)';
+    ctx.beginPath();
+    ctx.arc(px, pz, 8, 0, Math.PI * 2);
+    ctx.fill();
+  }
   
   // Player direction arrow
   ctx.strokeStyle = '#00FF00';
@@ -2467,10 +2704,11 @@ function drawKiezMap() {
   ctx.fillStyle = '#ccc';
   ctx.font = '10px monospace';
   ctx.textAlign = 'left';
-  ctx.fillText('🟢 Du', 10, 20);
+  ctx.fillText('🟢 Du' + (GameState.isHidden ? ' (versteckt)' : ''), 10, 20);
   ctx.fillText('🔴 NPCs', 10, 35);
-  ctx.fillText('🟡 Späti', 10, 50);
-  ctx.fillText('⚫ Müll', 10, 65);
+  ctx.fillText('🔴🟡 Polizei', 10, 50);
+  ctx.fillText('🟡 Späti', 10, 65);
+  ctx.fillText('⚫ Müll', 10, 80);
 }
 
 function toggleInventory() {
@@ -2905,6 +3143,267 @@ function updateWantedDisplay() {
   }
   
   starsElement.textContent = stars;
+}
+
+function updatePoliceNPC(police, deltaTime) {
+  police.nextTargetTime -= deltaTime;
+  
+  // Check if police can see player
+  const playerDistance = police.position.distanceTo(GameState.playerPosition);
+  const canSeePlayer = canPoliceSeePLayer(police, GameState.playerPosition);
+  
+  if (canSeePlayer && playerDistance <= police.viewDistance) {
+    police.lastSeenPlayer = GameState.playerPosition.clone();
+    police.alertLevel = Math.min(100, police.alertLevel + deltaTime * 50);
+    GameState.lastSeenByPolice = Date.now();
+    
+    // Start chasing if alert enough
+    if (police.alertLevel > 30) {
+      police.behaviorState = 'chase';
+      police.isChasing = true;
+    }
+  } else {
+    // Lose sight of player
+    police.alertLevel = Math.max(0, police.alertLevel - deltaTime * 20);
+    if (police.alertLevel <= 0 && police.behaviorState === 'chase') {
+      police.behaviorState = 'search';
+      police.nextTargetTime = 10; // Search for 10 seconds
+    }
+  }
+  
+  // Police behavior AI
+  if (police.behaviorState === 'patrol') {
+    // Normal patrol behavior
+    if (police.nextTargetTime <= 0) {
+      police.walkDir.set(
+        Math.random() - 0.5,
+        0,
+        Math.random() - 0.5
+      ).normalize();
+      police.nextTargetTime = Math.random() * 8 + 3;
+    }
+    
+    const newX = police.position.x + police.walkDir.x * police.walkSpeed * deltaTime;
+    const newZ = police.position.z + police.walkDir.z * police.walkSpeed * deltaTime;
+    
+    if (Math.abs(newX) < 110 && Math.abs(newZ) < 110 && !checkNPCCollision(newX, newZ)) {
+      police.position.x = newX;
+      police.position.z = newZ;
+    } else {
+      police.walkDir.multiplyScalar(-1);
+    }
+    
+  } else if (police.behaviorState === 'chase') {
+    // Chase the player
+    if (police.lastSeenPlayer) {
+      const chaseDirection = new THREE.Vector3()
+        .subVectors(police.lastSeenPlayer, police.position)
+        .normalize();
+      
+      const chaseSpeed = police.walkSpeed * 1.8; // Run faster when chasing
+      const newX = police.position.x + chaseDirection.x * chaseSpeed * deltaTime;
+      const newZ = police.position.z + chaseDirection.z * chaseSpeed * deltaTime;
+      
+      if (!checkNPCCollision(newX, newZ)) {
+        police.position.x = newX;
+        police.position.z = newZ;
+      }
+      
+      // Check if close enough to arrest
+      if (playerDistance <= 2.5) {
+        arrestPlayer(police);
+        return;
+      }
+    }
+    
+  } else if (police.behaviorState === 'search') {
+    // Search around last known position
+    if (police.nextTargetTime <= 0) {
+      police.behaviorState = 'patrol';
+      police.nextTargetTime = Math.random() * 5 + 2;
+    } else if (police.lastSeenPlayer) {
+      // Circle around last seen position
+      const searchDirection = new THREE.Vector3()
+        .subVectors(police.lastSeenPlayer, police.position);
+      searchDirection.x += (Math.random() - 0.5) * 10;
+      searchDirection.z += (Math.random() - 0.5) * 10;
+      searchDirection.normalize();
+      
+      const newX = police.position.x + searchDirection.x * police.walkSpeed * deltaTime;
+      const newZ = police.position.z + searchDirection.z * police.walkSpeed * deltaTime;
+      
+      if (!checkNPCCollision(newX, newZ)) {
+        police.position.x = newX;
+        police.position.z = newZ;
+      }
+    }
+  }
+  
+  // Update animation (similar to normal NPCs)
+  police.group.position.set(police.position.x, 0, police.position.z);
+  
+  const distanceMoved = police.position.distanceTo(police.lastPosition);
+  police.isMoving = distanceMoved > 0.001;
+  police.lastPosition.copy(police.position);
+  
+  if (police.walkDir.length() > 0.1) {
+    const angle = Math.atan2(police.walkDir.x, police.walkDir.z);
+    police.group.rotation.y = angle;
+  }
+  
+  // Animate legs
+  if (police.isMoving) {
+    police.walkCycle += deltaTime * (police.behaviorState === 'chase' ? 12 : 8);
+    
+    if (police.group.userData.legs) {
+      police.group.userData.legs.forEach(leg => {
+        const originalY = leg.userData.originalY;
+        const isLeft = leg.userData.isLeft;
+        
+        const legPhase = isLeft ? police.walkCycle : police.walkCycle + Math.PI;
+        const legOffset = Math.sin(legPhase) * 0.1;
+        const legForward = Math.cos(legPhase) * 0.05;
+        
+        leg.position.y = originalY + Math.abs(legOffset);
+        leg.position.z = legForward;
+        leg.rotation.x = Math.sin(legPhase) * 0.3;
+      });
+    }
+  } else {
+    if (police.group.userData.legs) {
+      police.group.userData.legs.forEach(leg => {
+        leg.position.y = leg.userData.originalY;
+        leg.position.z = 0;
+        leg.rotation.x = 0;
+      });
+    }
+  }
+}
+
+function canPoliceSeePLayer(police, playerPos) {
+  // Simple line-of-sight check
+  const direction = new THREE.Vector3().subVectors(playerPos, police.position);
+  const distance = direction.length();
+  
+  if (distance > police.viewDistance) return false;
+  
+  // Check if player is behind buildings (simplified)
+  for (const building of GameState.buildings) {
+    const buildingCenter = new THREE.Vector3(building.x, 0, building.z);
+    const toBuildingCenter = new THREE.Vector3().subVectors(buildingCenter, police.position);
+    const toPlayer = new THREE.Vector3().subVectors(playerPos, police.position);
+    
+    // Check if building is between police and player
+    const dot = toBuildingCenter.dot(toPlayer.clone().normalize());
+    if (dot > 0 && toBuildingCenter.length() < toPlayer.length()) {
+      // Building might be blocking line of sight
+      const buildingDistance = Math.sqrt(
+        Math.pow(Math.max(0, Math.abs(playerPos.x - building.x) - building.w / 2), 2) +
+        Math.pow(Math.max(0, Math.abs(playerPos.z - building.z) - building.d / 2), 2)
+      );
+      
+      if (buildingDistance < 2) { // Player is close to/behind building
+        GameState.isHidden = true;
+        GameState.hidingSpot = buildingCenter;
+        return false;
+      }
+    }
+  }
+  
+  GameState.isHidden = false;
+  return true;
+}
+
+function arrestPlayer(police) {
+  // Player is arrested!
+  showMessage('🚔 VERHAFTET! Du wurdest von der Polizei geschnappt!');
+  showMessage('💸 Alles Geld konfisziert! Zurück zum Start!');
+  
+  // Remove all money
+  GameState.money = 2.50; // Back to starting amount
+  
+  // Remove stolen goods from inventory
+  GameState.inventory = GameState.inventory.filter(item => 
+    !['Diebesgut', 'Raubgut', 'Gestohlenes Handy'].includes(item.name)
+  );
+  
+  // Reset wanted level
+  GameState.wantedLevel = 0;
+  document.getElementById('wantedLevel').style.display = 'none';
+  
+  // Remove all police
+  GameState.policeNPCs.forEach(p => scene.remove(p.group));
+  GameState.policeNPCs = [];
+  
+  // Reset player position to spawn
+  GameState.playerPosition.set(0, 1.7, 0);
+  GameState.playerVelocity.set(0, 0, 0);
+  
+  // Stop any ongoing actions
+  if (GameState.isBegging) {
+    stopBegging();
+  }
+  
+  // Reset some stats as "punishment"
+  GameState.stats.hunger = Math.max(20, GameState.stats.hunger - 30);
+  GameState.stats.energy = Math.max(10, GameState.stats.energy - 40);
+  
+  // Show arrest screen temporarily
+  setTimeout(() => {
+    showMessage('🏙️ Du bist wieder frei... aber mittellos in Berlin!');
+    showMessage('💡 Zeit für einen Neuanfang - diesmal vorsichtiger?');
+  }, 3000);
+}
+
+function updatePoliceUI() {
+  const policeAlert = document.getElementById('policeAlert');
+  const hidingStatus = document.getElementById('hidingStatus');
+  
+  // Show police alert if police are nearby and chasing
+  let policeNearby = false;
+  let policeChasingNearby = false;
+  
+  GameState.policeNPCs.forEach(police => {
+    const distance = police.position.distanceTo(GameState.playerPosition);
+    if (distance <= 25) {
+      policeNearby = true;
+    }
+    if (distance <= 25 && police.isChasing) {
+      policeChasingNearby = true;
+    }
+  });
+  
+  // Show alerts based on police status
+  if (policeChasingNearby) {
+    policeAlert.style.display = 'block';
+    policeAlert.textContent = '🚔 POLIZEI VERFOLGT DICH!';
+    policeAlert.style.background = 'rgba(255, 0, 0, 0.9)';
+  } else if (policeNearby) {
+    policeAlert.style.display = 'block';
+    policeAlert.textContent = '🚔 POLIZEI IN DER NÄHE!';
+    policeAlert.style.background = 'rgba(255, 165, 0, 0.8)';
+  } else {
+    policeAlert.style.display = 'none';
+  }
+  
+  // Show hiding status
+  if (GameState.isHidden) {
+    hidingStatus.style.display = 'block';
+  } else {
+    hidingStatus.style.display = 'none';
+  }
+}
+
+function decreaseWantedLevel() {
+  if (GameState.wantedLevel > 0) {
+    GameState.wantedLevel = Math.max(0, GameState.wantedLevel - 1);
+    updateWantedDisplay();
+    
+    if (GameState.wantedLevel === 0) {
+      document.getElementById('wantedLevel').style.display = 'none';
+      showMessage('🕊️ Fahndung beendet - du bist wieder sicher!');
+    }
+  }
 }
 
 // Start loading
