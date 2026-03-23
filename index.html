@@ -934,9 +934,12 @@ async function buildBerlinWorld() {
   // Buildings with windows
   createBerlinBuildings();
   
-  // Späti with graffiti
+  // Späti with graffiti - more in expanded world
   createSpäti(-15, 20);
   createSpäti(25, -30);
+  createSpäti(40, 15);
+  createSpäti(-35, -20);
+  createSpäti(10, 35);
   
   // NPCs
   spawnBerlinNPCs();
@@ -987,7 +990,7 @@ function createGround() {
   groundTexture.wrapT = THREE.RepeatWrapping;
   groundTexture.repeat.set(4, 4);
   
-  const groundGeometry = new THREE.PlaneGeometry(200, 200);
+  const groundGeometry = new THREE.PlaneGeometry(300, 300);
   const groundMaterial = new THREE.MeshLambertMaterial({ map: groundTexture });
   const ground = new THREE.Mesh(groundGeometry, groundMaterial);
   ground.rotation.x = -Math.PI / 2;
@@ -997,11 +1000,22 @@ function createGround() {
 
 function createBerlinBuildings() {
   const buildingPositions = [
+    // Original buildings
     { x: 20, z: 10, w: 15, h: 20 },
     { x: -25, z: 15, w: 12, h: 18 },
     { x: 30, z: -20, w: 18, h: 25 },
     { x: -20, z: -25, w: 14, h: 22 },
-    { x: 0, z: 40, w: 20, h: 16 }
+    { x: 0, z: 40, w: 20, h: 16 },
+    // Additional buildings for expanded world
+    { x: 45, z: 25, w: 16, h: 24 },
+    { x: -45, z: -30, w: 14, h: 20 },
+    { x: 50, z: -10, w: 12, h: 18 },
+    { x: -40, z: 20, w: 18, h: 22 },
+    { x: 35, z: 45, w: 15, h: 19 },
+    { x: -35, z: -45, w: 13, h: 17 },
+    { x: -50, z: 5, w: 16, h: 21 },
+    { x: 25, z: -45, w: 14, h: 23 },
+    { x: -25, z: 45, w: 17, h: 20 }
   ];
   
   buildingPositions.forEach(pos => {
@@ -1144,13 +1158,25 @@ function createSpäti(x, z) {
 function spawnBerlinNPCs() {
   const npcTypes = ['tourist', 'punk', 'hipster', 'oma', 'berliner'];
   const npcPositions = [
+    // Original NPCs
     { x: 10, z: 15, type: 'tourist' },
     { x: -15, z: -10, type: 'punk' },
     { x: 25, z: 5, type: 'hipster' },
     { x: -8, z: 30, type: 'oma' },
     { x: 18, z: -20, type: 'berliner' },
     { x: -25, z: 8, type: 'tourist' },
-    { x: 35, z: -5, type: 'hipster' }
+    { x: 35, z: -5, type: 'hipster' },
+    // Additional NPCs for expanded world
+    { x: 45, z: 30, type: 'berliner' },
+    { x: -45, z: -25, type: 'punk' },
+    { x: 50, z: 10, type: 'tourist' },
+    { x: -40, z: 35, type: 'oma' },
+    { x: 38, z: -35, type: 'hipster' },
+    { x: -38, z: -40, type: 'berliner' },
+    { x: 42, z: -15, type: 'tourist' },
+    { x: -42, z: 25, type: 'punk' },
+    { x: 15, z: 45, type: 'oma' },
+    { x: -20, z: -45, type: 'hipster' }
   ];
   
   npcPositions.forEach(npcData => {
@@ -1194,14 +1220,21 @@ function createBerlinNPC(x, z, type) {
   hair.position.y = 1.72;
   group.add(hair);
   
-  // Legs (rounded)
+  // Legs (rounded) - stored for animation
   const legGeometry = new THREE.CylinderGeometry(0.09, 0.11, 0.7, 6);
   const pantsMaterial = new THREE.MeshLambertMaterial({ color: '#2a2a3a' });
-  [-0.12, 0.12].forEach(offset => {
+  const legs = [];
+  [-0.12, 0.12].forEach((offset, index) => {
     const leg = new THREE.Mesh(legGeometry, pantsMaterial);
     leg.position.set(offset, 0.35, 0);
+    leg.userData.originalY = 0.35;
+    leg.userData.isLeft = index === 0;
+    legs.push(leg);
     group.add(leg);
   });
+  
+  // Store legs reference for animation
+  group.userData.legs = legs;
   
   // Accessories based on type
   if (style.accessory === 'glasses') {
@@ -1241,23 +1274,34 @@ function createBerlinNPC(x, z, type) {
     isWaiting: false,
     waitTime: 0,
     targetPosition: null,
-    behaviorState: 'wandering' // wandering, waiting, targeted
+    behaviorState: 'wandering', // wandering, waiting, targeted
+    // Animation state
+    walkCycle: 0,
+    isMoving: false,
+    lastPosition: new THREE.Vector3(x, 0, z)
   });
   
   console.log(`👤 ${type} NPC spawned at (${x}, ${z})`);
 }
 
 function addStreetFurniture() {
-  // Trash bins for collecting Pfand
+  // More trash bins for better gameplay - expanded map
   const trashPositions = [
-    [8, 12], [-12, 8], [15, -15], [-20, -8], [25, 25]
+    // Original positions
+    [8, 12], [-12, 8], [15, -15], [-20, -8], [25, 25],
+    // Additional bins for bigger world
+    [35, 15], [-35, -15], [20, -35], [-25, 30], [40, -10],
+    [-30, 25], [45, 5], [-40, -5], [10, 35], [-15, -30],
+    [30, -25], [-35, 10], [25, 40], [-45, 0], [0, -40],
+    // More scattered around
+    [22, 18], [-18, 22], [38, -20], [-28, -35], [15, 28]
   ];
   
   trashPositions.forEach(([x, z], index) => {
     createTrashBin(x, z, `trash_${index}`);
   });
   
-  console.log('🗑️ Street furniture added');
+  console.log(`🗑️ ${trashPositions.length} trash bins added`);
 }
 
 function createTrashBin(x, z, id) {
@@ -1285,7 +1329,9 @@ function createTrashBin(x, z, id) {
     id,
     position: new THREE.Vector3(x, 0.4, z),
     radius: 1.5,
-    label: '🗑️ Mülleimer (E zum Durchsuchen)'
+    label: '🗑️ Mülleimer (E zum Durchsuchen)',
+    lastSearched: 0,
+    searchCooldown: 60000 // 60 seconds in milliseconds
   });
 }
 
@@ -1499,13 +1545,25 @@ function updateInteractionPrompts() {
   if (nearestInteractable) {
     promptElement.style.display = 'block';
     if (nearestInteractable.type === 'trashbin') {
-      textElement.textContent = 'Mülleimer durchsuchen';
+      const currentTime = Date.now();
+      const timeSinceLastSearch = currentTime - nearestInteractable.lastSearched;
+      
+      if (nearestInteractable.lastSearched > 0 && timeSinceLastSearch < nearestInteractable.searchCooldown) {
+        const remainingSeconds = Math.ceil((nearestInteractable.searchCooldown - timeSinceLastSearch) / 1000);
+        textElement.textContent = `Mülleimer (${remainingSeconds}s Cooldown)`;
+        promptElement.style.opacity = '0.6';
+      } else {
+        textElement.textContent = 'Mülleimer durchsuchen';
+        promptElement.style.opacity = '1';
+      }
     } else if (nearestInteractable.type === 'späti') {
       textElement.textContent = 'Späti betreten';
+      promptElement.style.opacity = '1';
     }
   } else if (nearbyNPC) {
     promptElement.style.display = 'block';
     textElement.textContent = `Mit ${nearbyNPC.type} sprechen`;
+    promptElement.style.opacity = '1';
   } else {
     promptElement.style.display = 'none';
   }
@@ -1563,9 +1621,9 @@ function updateMovement(deltaTime) {
       }
     }
     
-    // Bounds check
-    GameState.playerPosition.x = Math.max(-90, Math.min(90, GameState.playerPosition.x));
-    GameState.playerPosition.z = Math.max(-90, Math.min(90, GameState.playerPosition.z));
+    // Bounds check - expanded world
+    GameState.playerPosition.x = Math.max(-120, Math.min(120, GameState.playerPosition.x));
+    GameState.playerPosition.z = Math.max(-120, Math.min(120, GameState.playerPosition.z));
   }
 }
 
@@ -1630,8 +1688,8 @@ function updateNPCs(deltaTime) {
         const newX = npc.position.x + npc.walkDir.x * npc.walkSpeed * deltaTime;
         const newZ = npc.position.z + npc.walkDir.z * npc.walkSpeed * deltaTime;
         
-        // Check bounds and collision
-        if (Math.abs(newX) < 80 && Math.abs(newZ) < 80 && !checkNPCCollision(newX, newZ)) {
+        // Check bounds and collision - expanded world
+        if (Math.abs(newX) < 110 && Math.abs(newZ) < 110 && !checkNPCCollision(newX, newZ)) {
           npc.position.x = newX;
           npc.position.z = newZ;
         } else {
@@ -1679,10 +1737,48 @@ function updateNPCs(deltaTime) {
     // Update NPC position
     npc.group.position.set(npc.position.x, 0, npc.position.z);
     
-    // Rotate NPC to face movement direction (optional)
+    // Check if NPC is actually moving
+    const distanceMoved = npc.position.distanceTo(npc.lastPosition);
+    npc.isMoving = distanceMoved > 0.001; // Small threshold for floating point precision
+    npc.lastPosition.copy(npc.position);
+    
+    // Rotate NPC to face movement direction
     if (npc.walkDir.length() > 0.1) {
       const angle = Math.atan2(npc.walkDir.x, npc.walkDir.z);
       npc.group.rotation.y = angle;
+    }
+    
+    // Animate legs if moving
+    if (npc.isMoving) {
+      npc.walkCycle += deltaTime * 8; // Walking speed
+      
+      // Animate each leg
+      if (npc.group.userData.legs) {
+        npc.group.userData.legs.forEach(leg => {
+          const originalY = leg.userData.originalY;
+          const isLeft = leg.userData.isLeft;
+          
+          // Create alternating leg movement
+          const legPhase = isLeft ? npc.walkCycle : npc.walkCycle + Math.PI;
+          const legOffset = Math.sin(legPhase) * 0.1; // Up/down movement
+          const legForward = Math.cos(legPhase) * 0.05; // Forward/back movement
+          
+          leg.position.y = originalY + Math.abs(legOffset); // Only move up, not down below ground
+          leg.position.z = legForward;
+          
+          // Slight leg rotation for more natural walking
+          leg.rotation.x = Math.sin(legPhase) * 0.3;
+        });
+      }
+    } else {
+      // Reset legs to neutral position when not moving
+      if (npc.group.userData.legs) {
+        npc.group.userData.legs.forEach(leg => {
+          leg.position.y = leg.userData.originalY;
+          leg.position.z = 0;
+          leg.rotation.x = 0;
+        });
+      }
     }
   });
 }
@@ -1891,30 +1987,40 @@ function findNearestInteractable() {
 }
 
 function searchTrashBin(trashBin) {
-  if (GameState.collectibles.has(trashBin.id)) {
-    showMessage('🗑️ Dieser Mülleimer wurde bereits durchsucht');
+  const currentTime = Date.now();
+  const timeSinceLastSearch = currentTime - trashBin.lastSearched;
+  
+  if (trashBin.lastSearched > 0 && timeSinceLastSearch < trashBin.searchCooldown) {
+    const remainingSeconds = Math.ceil((trashBin.searchCooldown - timeSinceLastSearch) / 1000);
+    showMessage(`🕐 Mülleimer noch ${remainingSeconds}s gesperrt`);
     return;
   }
   
-  GameState.collectibles.add(trashBin.id);
+  trashBin.lastSearched = currentTime;
   
   const roll = Math.random();
-  if (roll < 0.4) {
+  if (roll < 0.45) { // Increased chance for better gameplay
     const pfandAmount = 0.25;
     GameState.money += pfandAmount;
     addToInventory('🍺', 'Pfandflasche');
     showMessage(`🍺 Pfandflasche gefunden! +${pfandAmount.toFixed(2)}€`);
-  } else if (roll < 0.6) {
+  } else if (roll < 0.65) {
     GameState.stats.hunger = Math.min(100, GameState.stats.hunger + 15);
     addToInventory('🥪', 'Essensreste');
     showMessage('🥪 Essensreste gefunden! Hunger +15');
-  } else if (roll < 0.7) {
+  } else if (roll < 0.8) {
     const euros = Math.random() * 2 + 0.5;
     GameState.money += euros;
     addToInventory('💰', 'Kleingeld');
     showMessage(`💰 ${euros.toFixed(2)}€ im Müll gefunden!`);
+  } else if (roll < 0.9) {
+    // Sometimes find multiple items
+    GameState.money += 0.50;
+    addToInventory('🍺', 'Pfandflasche');
+    addToInventory('💰', 'Kleingeld');
+    showMessage('🎉 Jackpot! Pfand + Geld gefunden!');
   } else {
-    showMessage('🗑️ Nichts Brauchbares gefunden...');
+    showMessage('🗑️ Nur Müll... Versuche es in 60s nochmal');
   }
 }
 
@@ -1955,7 +2061,7 @@ function drawKiezMap() {
   const ctx = canvas.getContext('2d');
   const w = canvas.width;
   const h = canvas.height;
-  const scale = 2;
+  const scale = 1.5; // Smaller scale for bigger world
   
   // Clear canvas
   ctx.fillStyle = '#1a1a1a';
@@ -2011,12 +2117,18 @@ function drawKiezMap() {
     }
   });
   
-  // Trash bins
-  ctx.fillStyle = '#666';
+  // Trash bins with status indication
   GameState.interactables.forEach(interactable => {
     if (interactable.type === 'trashbin') {
       const tx = w/2 + (interactable.position.x * scale);
       const tz = h/2 + (interactable.position.z * scale);
+      
+      // Check cooldown status
+      const currentTime = Date.now();
+      const timeSinceLastSearch = currentTime - interactable.lastSearched;
+      const isAvailable = interactable.lastSearched === 0 || timeSinceLastSearch >= interactable.searchCooldown;
+      
+      ctx.fillStyle = isAvailable ? '#4CAF50' : '#666'; // Green if available, gray if on cooldown
       ctx.beginPath();
       ctx.arc(tx, tz, 2, 0, Math.PI * 2);
       ctx.fill();
