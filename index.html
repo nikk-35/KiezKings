@@ -104,6 +104,29 @@ canvas{display:block;width:100%!important;height:100%!important}
 .shop-item .effect{color:#888;font-size:clamp(0.5rem,1.2vw,0.6rem);margin-top:2px}
 #shopUI .close-shop{color:#999;font-size:clamp(0.7rem,1.8vw,0.85rem);margin-top:1.5em;cursor:pointer;letter-spacing:0.1em}
 
+/* Map UI */
+#mapUI{position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:400;display:none;flex-direction:column;align-items:center;justify-content:center}
+#mapUI h2{color:#e8c547;font-size:clamp(1.2rem,3vw,1.6rem);letter-spacing:0.2em;margin-bottom:1em}
+#mapCanvas{border:2px solid #e8c547;border-radius:8px;background:#1a1a1a}
+#mapUI .close-map{color:#999;font-size:clamp(0.7rem,1.8vw,0.85rem);margin-top:1.5em;cursor:pointer;letter-spacing:0.1em}
+
+/* Menu UI */
+#menuUI{position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:400;display:none;flex-direction:column;align-items:center;justify-content:center}
+#menuUI h2{color:#e8c547;font-size:clamp(1.4rem,3.5vw,2rem);letter-spacing:0.2em;margin-bottom:1.5em}
+.menu-item{color:#ccc;font-size:clamp(0.9rem,2.2vw,1.1rem);margin:0.8em 0;cursor:pointer;letter-spacing:0.1em;transition:color 0.3s}
+.menu-item:hover{color:#e8c547}
+#menuUI .close-menu{color:#999;font-size:clamp(0.7rem,1.8vw,0.85rem);margin-top:2em;cursor:pointer;letter-spacing:0.1em}
+
+/* Inventory UI */
+#inventoryUI{position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:400;display:none;flex-direction:column;align-items:center;justify-content:center}
+#inventoryUI h2{color:#e8c547;font-size:clamp(1.2rem,3vw,1.6rem);letter-spacing:0.2em;margin-bottom:1em}
+#inventoryUI .inventory-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(80px,1fr));gap:10px;max-width:400px;padding:0 20px}
+.inventory-slot{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.15);border-radius:6px;padding:12px;text-align:center;min-height:60px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.inventory-slot .emoji{font-size:1.5rem;margin-bottom:4px}
+.inventory-slot .name{color:#ccc;font-size:0.7rem}
+.inventory-slot.empty{opacity:0.3}
+#inventoryUI .close-inventory{color:#999;font-size:clamp(0.7rem,1.8vw,0.85rem);margin-top:1.5em;cursor:pointer;letter-spacing:0.1em}
+
 /* Vignette */
 #vignette{position:fixed;inset:0;pointer-events:none;z-index:98;background:radial-gradient(ellipse at center,transparent 60%,rgba(0,0,0,0.4) 100%)}
 </style>
@@ -195,6 +218,33 @@ canvas{display:block;width:100%!important;height:100%!important}
   <div class="close-shop" id="closeShop">[ ESC ] Verlassen</div>
 </div>
 
+<div id="mapUI">
+  <h2>🗺️ KIEZ MAP</h2>
+  <canvas id="mapCanvas" width="400" height="400"></canvas>
+  <div class="close-map" id="closeMap">[ ESC ] oder [ M ] Schließen</div>
+</div>
+
+<div id="menuUI">
+  <h2>⚙️ KIEZKINGS MENÜ</h2>
+  <div class="menu-item" id="resumeGame">Spiel Fortsetzen</div>
+  <div class="menu-item" id="showControls">Steuerung</div>
+  <div class="menu-item" id="showStats">Statistiken</div>
+  <div class="menu-item" id="restartGame">Neues Spiel</div>
+  <div class="close-menu" id="closeMenu">[ ESC ] Schließen</div>
+</div>
+
+<div id="inventoryUI">
+  <h2>🎒 INVENTAR</h2>
+  <div class="inventory-stats">
+    <div style="color:#ccc;margin-bottom:1em;">
+      Geld: <span id="invMoney" style="color:#e8c547;">0,00€</span> | 
+      Gewicht: <span id="invWeight">0/50 kg</span>
+    </div>
+  </div>
+  <div class="inventory-grid" id="inventoryGrid"></div>
+  <div class="close-inventory" id="closeInventory">[ ESC ] oder [ I ] Schließen</div>
+</div>
+
 <div id="deathScreen">
   <h1>GAME OVER</h1>
   <div class="restart">Antippen zum Neustarten</div>
@@ -241,6 +291,9 @@ const G = {
   messages: [],
   shopOpen: false,
   notifOpen: false,
+  mapOpen: false,
+  menuOpen: false,
+  inventoryOpen: false,
   lastNPCEncounter: 0,
   footstepPhase: 0,
 };
@@ -1405,15 +1458,29 @@ const keys = {};
 
 document.addEventListener('keydown', e => {
   keys[e.code] = true;
+  
+  // Game interactions
   if (e.code === 'KeyE') handleInteraction();
-  if (e.code === 'Escape' && G.shopOpen) closeShop();
-  if (e.code === 'Escape' && G.notifOpen) closeNotification();
+  
+  // UI Hotkeys
+  if (e.code === 'KeyM') toggleMap();
+  if (e.code === 'KeyI') toggleInventory();
+  
+  // Escape key - close overlays in priority order
+  if (e.code === 'Escape') {
+    if (G.menuOpen) closeMenu();
+    else if (G.mapOpen) closeMap();
+    else if (G.inventoryOpen) closeInventory();
+    else if (G.shopOpen) closeShop();
+    else if (G.notifOpen) closeNotification();
+    else toggleMenu(); // Open menu if nothing else open
+  }
 });
 document.addEventListener('keyup', e => { keys[e.code] = false; });
 
 // Pointer lock (desktop)
 renderer.domElement.addEventListener('click', () => {
-  if (!G.started || G.dead || G.shopOpen || G.notifOpen) return;
+  if (!G.started || G.dead || G.shopOpen || G.notifOpen || G.mapOpen || G.menuOpen || G.inventoryOpen) return;
   if (!G.isMobile && !G.isPointerLocked) {
     renderer.domElement.requestPointerLock();
   }
@@ -1424,7 +1491,7 @@ document.addEventListener('pointerlockchange', () => {
 });
 
 document.addEventListener('mousemove', e => {
-  if (!G.isPointerLocked || G.shopOpen || G.notifOpen) return;
+  if (!G.isPointerLocked || G.shopOpen || G.notifOpen || G.mapOpen || G.menuOpen || G.inventoryOpen) return;
   G.yaw -= e.movementX * 0.002;
   G.pitch -= e.movementY * 0.002;
   G.pitch = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, G.pitch));
@@ -1661,7 +1728,7 @@ function getInteractTarget() {
 }
 
 function handleInteraction() {
-  if (!G.interactTarget || G.shopOpen || G.notifOpen) return;
+  if (!G.interactTarget || G.shopOpen || G.notifOpen || G.mapOpen || G.menuOpen || G.inventoryOpen) return;
   
   const target = G.interactTarget;
   
@@ -1946,6 +2013,224 @@ function closeNotification() {
   G.paused = false;
   document.getElementById('notification').style.display = 'none';
 }
+
+// Map UI
+function toggleMap() {
+  if (G.mapOpen) {
+    closeMap();
+  } else {
+    openMap();
+  }
+}
+
+function openMap() {
+  // Close other UIs first
+  if (G.menuOpen) closeMenu();
+  if (G.inventoryOpen) closeInventory();
+  if (G.shopOpen) closeShop();
+  if (G.notifOpen) closeNotification();
+  
+  G.mapOpen = true;
+  G.paused = true;
+  document.getElementById('mapUI').style.display = 'flex';
+  if (G.isPointerLocked) document.exitPointerLock();
+  
+  // Draw detailed map
+  drawDetailedMap();
+}
+
+function closeMap() {
+  G.mapOpen = false;
+  G.paused = false;
+  document.getElementById('mapUI').style.display = 'none';
+}
+
+function drawDetailedMap() {
+  const canvas = document.getElementById('mapCanvas');
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width;
+  const h = canvas.height;
+  const scale = 2;
+  
+  // Clear
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(0, 0, w, h);
+  
+  // Grid
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 1;
+  for (let x = 0; x < w; x += 20) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, h);
+    ctx.stroke();
+  }
+  for (let y = 0; y < h; y += 20) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(w, y);
+    ctx.stroke();
+  }
+  
+  // Streets
+  ctx.fillStyle = '#444';
+  ctx.fillRect(w/2 - 6, 0, 12, h);    // Main street
+  ctx.fillRect(0, h/2 - 6, w, 12);    // Cross street
+  
+  // Buildings
+  ctx.fillStyle = '#8B5E3C';
+  G.buildings.forEach(b => {
+    const bx = w/2 + (b.x * scale);
+    const bz = h/2 + (b.z * scale);
+    const bw = b.w * scale;
+    const bd = b.d * scale;
+    if (bx > -bw && bx < w+bw && bz > -bd && bz < h+bd) {
+      ctx.fillRect(bx - bw/2, bz - bd/2, bw, bd);
+    }
+  });
+  
+  // Spätis
+  ctx.fillStyle = '#e8c547';
+  ctx.fillRect(w/2 + (17.5 * scale), h/2 + (15 * scale), 12, 10);
+  ctx.fillRect(w/2 + (-17.5 * scale), h/2 + (-40 * scale), 12, 10);
+  
+  // U-Bahn
+  ctx.fillStyle = '#2196F3';
+  ctx.fillRect(w/2 + (6 * scale), h/2 + (-6 * scale), 8, 8);
+  
+  // NPCs
+  ctx.fillStyle = '#FF6B6B';
+  G.npcs.forEach(npc => {
+    const nx = w/2 + (npc.position.x * scale);
+    const nz = h/2 + (npc.position.z * scale);
+    ctx.beginPath();
+    ctx.arc(nx, nz, 3, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  
+  // Player
+  ctx.fillStyle = '#00FF00';
+  const px = w/2 + (G.playerPos.x * scale);
+  const pz = h/2 + (G.playerPos.z * scale);
+  ctx.beginPath();
+  ctx.arc(px, pz, 4, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Player direction
+  ctx.strokeStyle = '#00FF00';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(px, pz);
+  const dirX = px + Math.sin(G.yaw) * 15;
+  const dirZ = pz - Math.cos(G.yaw) * 15;
+  ctx.lineTo(dirX, dirZ);
+  ctx.stroke();
+}
+
+// Menu UI
+function toggleMenu() {
+  if (G.menuOpen) {
+    closeMenu();
+  } else {
+    openMenu();
+  }
+}
+
+function openMenu() {
+  // Close other UIs first
+  if (G.mapOpen) closeMap();
+  if (G.inventoryOpen) closeInventory();
+  if (G.shopOpen) closeShop();
+  if (G.notifOpen) closeNotification();
+  
+  G.menuOpen = true;
+  G.paused = true;
+  document.getElementById('menuUI').style.display = 'flex';
+  if (G.isPointerLocked) document.exitPointerLock();
+}
+
+function closeMenu() {
+  G.menuOpen = false;
+  G.paused = false;
+  document.getElementById('menuUI').style.display = 'none';
+}
+
+// Inventory UI  
+function toggleInventory() {
+  if (G.inventoryOpen) {
+    closeInventory();
+  } else {
+    openInventory();
+  }
+}
+
+function openInventory() {
+  // Close other UIs first
+  if (G.menuOpen) closeMenu();
+  if (G.mapOpen) closeMap();
+  if (G.shopOpen) closeShop();
+  if (G.notifOpen) closeNotification();
+  
+  G.inventoryOpen = true;
+  G.paused = true;
+  document.getElementById('inventoryUI').style.display = 'flex';
+  if (G.isPointerLocked) document.exitPointerLock();
+  
+  // Update inventory display
+  updateInventoryDisplay();
+}
+
+function closeInventory() {
+  G.inventoryOpen = false;
+  G.paused = false;
+  document.getElementById('inventoryUI').style.display = 'none';
+}
+
+function updateInventoryDisplay() {
+  const grid = document.getElementById('inventoryGrid');
+  const moneyEl = document.getElementById('invMoney');
+  const weightEl = document.getElementById('invWeight');
+  
+  // Update stats
+  moneyEl.textContent = G.money.toFixed(2) + '€';
+  weightEl.textContent = '0/50 kg'; // TODO: implement weight system
+  
+  // Clear grid
+  grid.innerHTML = '';
+  
+  // Sample inventory items (TODO: implement real inventory system)
+  const sampleItems = [
+    { name: 'Handy', emoji: '📱', description: 'Dein Smartphone' },
+    { name: 'Schlüssel', emoji: '🗝️', description: 'Wohnungsschlüssel' },
+    { name: 'Geldbörse', emoji: '👛', description: 'Enthält dein Bargeld' },
+  ];
+  
+  // Add items
+  sampleItems.forEach(item => {
+    const slot = document.createElement('div');
+    slot.className = 'inventory-slot';
+    slot.innerHTML = `
+      <div class="emoji">${item.emoji}</div>
+      <div class="name">${item.name}</div>
+    `;
+    grid.appendChild(slot);
+  });
+  
+  // Add empty slots
+  for (let i = sampleItems.length; i < 12; i++) {
+    const slot = document.createElement('div');
+    slot.className = 'inventory-slot empty';
+    slot.innerHTML = '<div style="color:#666;">Leer</div>';
+    grid.appendChild(slot);
+  }
+}
+
+// Event listeners for UI
+document.getElementById('closeMap').addEventListener('click', closeMap);
+document.getElementById('closeMenu').addEventListener('click', closeMenu);
+document.getElementById('closeInventory').addEventListener('click', closeInventory);
+document.getElementById('resumeGame').addEventListener('click', closeMenu);
+document.getElementById('restartGame').addEventListener('click', () => location.reload());
 
 // Inventory
 function addToInventory(emoji, name) {
