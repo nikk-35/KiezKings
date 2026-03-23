@@ -1298,7 +1298,7 @@ if (G.isMobile) {
         const ny = Math.sin(angle) * dist;
         joystickThumb.style.transform = `translate(calc(-50% + ${nx}px), calc(-50% + ${ny}px))`;
         G.moveInput.x = nx / maxDist;
-        G.moveInput.z = -ny / maxDist; // FIXED: Up = forward = positive Z (after WASD fix)
+        G.moveInput.z = ny / maxDist;  // JOYSTICK: Up(ny<0) = forward(z<0), Down(ny>0) = backward(z>0)
       } else if (t.identifier === lookTouch.identifier) {
         G.yaw -= (t.clientX - lookTouch._lastX) * 0.006;
         G.pitch -= (t.clientY - lookTouch._lastY) * 0.006;
@@ -1952,8 +1952,8 @@ function update() {
   if (!G.isMobile) {
     G.moveInput.x = 0;
     G.moveInput.z = 0;
-    if (keys['KeyW'] || keys['ArrowUp']) G.moveInput.z = 1;   // FIXED: Forward = positive Z
-    if (keys['KeyS'] || keys['ArrowDown']) G.moveInput.z = -1; // FIXED: Backward = negative Z
+    if (keys['KeyW'] || keys['ArrowUp']) G.moveInput.z = -1;  // FORWARD = negative Z (toward camera)
+    if (keys['KeyS'] || keys['ArrowDown']) G.moveInput.z = 1;  // BACKWARD = positive Z (away from camera)
     if (keys['KeyA'] || keys['ArrowLeft']) G.moveInput.x = -1;
     if (keys['KeyD'] || keys['ArrowRight']) G.moveInput.x = 1;
     G.sprinting = keys['ShiftLeft'] || keys['ShiftRight'];
