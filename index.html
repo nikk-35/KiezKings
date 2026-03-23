@@ -1293,21 +1293,12 @@ if (G.isMobile) {
         const dy = t.clientY - joystickCenter.y;
         const maxDist = 50;
         const dist = Math.min(Math.sqrt(dx * dx + dy * dy), maxDist);
-        
-        // Clamp to circle
-        const nx = dist > 0 ? (dx / Math.sqrt(dx * dx + dy * dy)) * dist : 0;
-        const ny = dist > 0 ? (dy / Math.sqrt(dx * dx + dy * dy)) * dist : 0;
-        
+        const angle = Math.atan2(dy, dx);
+        const nx = Math.cos(angle) * dist;
+        const ny = Math.sin(angle) * dist;
         joystickThumb.style.transform = `translate(calc(-50% + ${nx}px), calc(-50% + ${ny}px))`;
-        
-        // CORRECT MAPPING - FINAL FIX:
-        G.moveInput.x = nx / maxDist;      // Right = positive, Left = negative  
-        G.moveInput.z = -ny / maxDist;     // Up = negative Z (forward), Down = positive Z (backward)
-        
-        // DEBUG (remove later)
-        if (Math.abs(G.moveInput.x) > 0.1 || Math.abs(G.moveInput.z) > 0.1) {
-          console.log(`Joystick: x=${G.moveInput.x.toFixed(2)}, z=${G.moveInput.z.toFixed(2)}, yaw=${(G.yaw * 180 / Math.PI).toFixed(0)}°`);
-        }
+        G.moveInput.x = nx / maxDist;
+        G.moveInput.z = -ny / maxDist;
       } else if (t.identifier === lookTouch.identifier) {
         G.yaw -= (t.clientX - lookTouch._lastX) * 0.006;
         G.pitch -= (t.clientY - lookTouch._lastY) * 0.006;
@@ -1979,9 +1970,6 @@ function update() {
     const sin = Math.sin(G.yaw);
     const rx = moveVec.x * cos - moveVec.z * sin;
     const rz = moveVec.x * sin + moveVec.z * cos;
-    
-    // DEBUG movement rotation
-    console.log(`Movement: input(${moveVec.x.toFixed(2)}, ${moveVec.z.toFixed(2)}) -> world(${rx.toFixed(2)}, ${rz.toFixed(2)})`;
     
     const newPos = G.playerPos.clone();
     newPos.x += rx * speed * dt;
