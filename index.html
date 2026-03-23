@@ -227,6 +227,34 @@ body {
   100% { opacity: 0; transform: translateX(-50px); }
 }
 
+/* Interaction Prompt */
+#interactionPrompt {
+  position: fixed;
+  bottom: 150px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.9);
+  border: 2px solid #e8c547;
+  border-radius: 8px;
+  padding: 12px 20px;
+  color: #e8c547;
+  font-size: clamp(0.8rem, 2vw, 1rem);
+  letter-spacing: 0.1em;
+  text-align: center;
+  z-index: 300;
+  display: none;
+  animation: pulse 1.5s infinite;
+}
+
+#interactionPrompt .key {
+  background: #e8c547;
+  color: #000;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-weight: bold;
+  margin-right: 8px;
+}
+
 /* Desktop Info */
 .desktop-info {
   position: fixed;
@@ -468,6 +496,11 @@ body {
   </div>
 
   <div id="messageLog"></div>
+  
+  <!-- Interaction Prompt -->
+  <div id="interactionPrompt">
+    <span class="key">E</span><span id="interactionText">Interagieren</span>
+  </div>
 
   <!-- Touch Controls -->
   <div id="touchControls">
@@ -742,8 +775,47 @@ async function buildBerlinWorld() {
 }
 
 function createGround() {
+  // Create realistic street texture
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 512;
+  const ctx = canvas.getContext('2d');
+  
+  // Asphalt base
+  ctx.fillStyle = '#3a3a3a';
+  ctx.fillRect(0, 0, 512, 512);
+  
+  // Add noise/texture
+  for (let i = 0; i < 1000; i++) {
+    ctx.fillStyle = Math.random() > 0.5 ? '#2a2a2a' : '#4a4a4a';
+    ctx.fillRect(Math.random() * 512, Math.random() * 512, 2, 2);
+  }
+  
+  // Street lines (every 64px)
+  ctx.strokeStyle = '#666666';
+  ctx.lineWidth = 3;
+  for (let x = 64; x < 512; x += 128) {
+    ctx.beginPath();
+    ctx.setLineDash([20, 15]);
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, 512);
+    ctx.stroke();
+  }
+  for (let y = 64; y < 512; y += 128) {
+    ctx.beginPath();
+    ctx.setLineDash([20, 15]);
+    ctx.moveTo(0, y);
+    ctx.lineTo(512, y);
+    ctx.stroke();
+  }
+  
+  const groundTexture = new THREE.CanvasTexture(canvas);
+  groundTexture.wrapS = THREE.RepeatWrapping;
+  groundTexture.wrapT = THREE.RepeatWrapping;
+  groundTexture.repeat.set(4, 4);
+  
   const groundGeometry = new THREE.PlaneGeometry(200, 200);
-  const groundMaterial = new THREE.MeshLambertMaterial({ color: '#444444' });
+  const groundMaterial = new THREE.MeshLambertMaterial({ map: groundTexture });
   const ground = new THREE.Mesh(groundGeometry, groundMaterial);
   ground.rotation.x = -Math.PI / 2;
   ground.receiveShadow = true;
@@ -991,7 +1063,12 @@ function createBerlinNPC(x, z, type) {
       0,
       Math.random() - 0.5
     ).normalize(),
-    walkSpeed: 0.5 + Math.random() * 0.5
+    walkSpeed: 0.3 + Math.random() * 0.4,
+    nextTargetTime: Math.random() * 10,
+    isWaiting: false,
+    waitTime: 0,
+    targetPosition: null,
+    behaviorState: 'wandering' // wandering, waiting, targeted
   });
   
   console.log(`👤 ${type} NPC spawned at (${x}, ${z})`);
@@ -1233,8 +1310,32 @@ function updateGame(deltaTime) {
   // Update stats
   updateStats(deltaTime);
   
+  // Update interaction prompts
+  updateInteractionPrompts();
+  
   // Update camera
   updateCamera();
+}
+
+function updateInteractionPrompts() {
+  const nearestInteractable = findNearestInteractable();
+  const nearbyNPC = findNearbyNPC();
+  const promptElement = document.getElementById('interactionPrompt');
+  const textElement = document.getElementById('interactionText');
+  
+  if (nearestInteractable) {
+    promptElement.style.display = 'block';
+    if (nearestInteractable.type === 'trashbin') {
+      textElement.textContent = 'Mülleimer durchsuchen';
+    } else if (nearestInteractable.type === 'späti') {
+      textElement.textContent = 'Späti betreten';
+    }
+  } else if (nearbyNPC) {
+    promptElement.style.display = 'block';
+    textElement.textContent = `Mit ${nearbyNPC.type} sprechen`;
+  } else {
+    promptElement.style.display = 'none';
+  }
 }
 
 function updateMovement(deltaTime) {
@@ -1251,7 +1352,7 @@ function updateMovement(deltaTime) {
     GameState.sprinting = GameState.keys['ShiftLeft'] || GameState.keys['ShiftRight'];
   }
   
-  // Apply movement
+  // Apply movement with collision
   const speed = GameState.sprinting ? 8 : 4;
   const movementVector = new THREE.Vector3(GameState.moveInput.x, 0, GameState.moveInput.z);
   
@@ -1266,8 +1367,28 @@ function updateMovement(deltaTime) {
     const rotatedX = movementVector.x * cos - movementVector.z * sin;
     const rotatedZ = movementVector.x * sin + movementVector.z * cos;
     
-    GameState.playerPosition.x += rotatedX * speed * deltaTime;
-    GameState.playerPosition.z += rotatedZ * speed * deltaTime;
+    // Calculate new position
+    const newX = GameState.playerPosition.x + rotatedX * speed * deltaTime;
+    const newZ = GameState.playerPosition.z + rotatedZ * speed * deltaTime;
+    
+    // Check collision before moving
+    if (!checkCollision(newX, newZ)) {
+      GameState.playerPosition.x = newX;
+      GameState.playerPosition.z = newZ;
+    } else {
+      // Try moving only in X direction
+      if (!checkCollision(newX, GameState.playerPosition.z)) {
+        GameState.playerPosition.x = newX;
+      }
+      // Try moving only in Z direction
+      else if (!checkCollision(GameState.playerPosition.x, newZ)) {
+        GameState.playerPosition.z = newZ;
+      }
+      // If neither works, we're stuck - show debug message occasionally
+      else if (Math.random() < 0.02) {
+        showMessage('🧱 Weg versperrt!');
+      }
+    }
     
     // Bounds check
     GameState.playerPosition.x = Math.max(-90, Math.min(90, GameState.playerPosition.x));
@@ -1275,28 +1396,156 @@ function updateMovement(deltaTime) {
   }
 }
 
+function checkCollision(x, z) {
+  const playerRadius = 1; // Player collision radius
+  
+  // Check against buildings
+  for (const building of GameState.buildings) {
+    const halfW = building.w / 2 + playerRadius;
+    const halfD = building.d / 2 + playerRadius;
+    
+    if (x >= building.x - halfW && x <= building.x + halfW &&
+        z >= building.z - halfD && z <= building.z + halfD) {
+      return true; // Collision detected
+    }
+  }
+  
+  return false; // No collision
+}
+
 function updateNPCs(deltaTime) {
   GameState.npcs.forEach(npc => {
-    // Simple random walk
-    if (Math.random() < 0.02) {
-      npc.walkDir.set(
-        Math.random() - 0.5,
-        0,
-        Math.random() - 0.5
-      ).normalize();
+    npc.nextTargetTime -= deltaTime;
+    
+    // NPC Behavior AI
+    if (npc.behaviorState === 'waiting') {
+      npc.waitTime -= deltaTime;
+      if (npc.waitTime <= 0) {
+        npc.behaviorState = 'wandering';
+        npc.nextTargetTime = Math.random() * 8 + 2;
+      }
+    } else if (npc.behaviorState === 'wandering') {
+      if (npc.nextTargetTime <= 0) {
+        // Choose new behavior based on NPC type
+        const roll = Math.random();
+        
+        if (roll < 0.3) {
+          // Wait/pause behavior
+          npc.behaviorState = 'waiting';
+          npc.waitTime = 1 + Math.random() * 4;
+        } else if (roll < 0.6) {
+          // Walk towards Späti
+          const nearestSpäti = findNearestSpäti(npc.position);
+          if (nearestSpäti) {
+            npc.targetPosition = nearestSpäti.position.clone();
+            npc.behaviorState = 'targeted';
+            npc.nextTargetTime = 10; // Max time to reach target
+          }
+        } else {
+          // New random direction
+          npc.walkDir.set(
+            Math.random() - 0.5,
+            0,
+            Math.random() - 0.5
+          ).normalize();
+          npc.nextTargetTime = Math.random() * 6 + 2;
+        }
+      }
+      
+      // Normal wandering movement
+      if (npc.behaviorState === 'wandering') {
+        const newX = npc.position.x + npc.walkDir.x * npc.walkSpeed * deltaTime;
+        const newZ = npc.position.z + npc.walkDir.z * npc.walkSpeed * deltaTime;
+        
+        // Check bounds and collision
+        if (Math.abs(newX) < 80 && Math.abs(newZ) < 80 && !checkNPCCollision(newX, newZ)) {
+          npc.position.x = newX;
+          npc.position.z = newZ;
+        } else {
+          // Bounce off obstacles
+          npc.walkDir.multiplyScalar(-1);
+          npc.nextTargetTime = Math.random() * 3 + 1;
+        }
+      }
+    } else if (npc.behaviorState === 'targeted' && npc.targetPosition) {
+      // Move towards target
+      const direction = new THREE.Vector3()
+        .subVectors(npc.targetPosition, npc.position)
+        .normalize();
+      
+      const moveSpeed = npc.walkSpeed * 1.2; // Slightly faster when targeted
+      const newX = npc.position.x + direction.x * moveSpeed * deltaTime;
+      const newZ = npc.position.z + direction.z * moveSpeed * deltaTime;
+      
+      if (!checkNPCCollision(newX, newZ)) {
+        npc.position.x = newX;
+        npc.position.z = newZ;
+        
+        // Check if reached target
+        const distanceToTarget = npc.position.distanceTo(npc.targetPosition);
+        if (distanceToTarget < 2) {
+          npc.behaviorState = 'waiting';
+          npc.waitTime = 2 + Math.random() * 3;
+          npc.targetPosition = null;
+        }
+      } else {
+        // Obstacle hit, go back to wandering
+        npc.behaviorState = 'wandering';
+        npc.nextTargetTime = Math.random() * 3;
+        npc.targetPosition = null;
+      }
+      
+      if (npc.nextTargetTime <= 0) {
+        // Timeout, abandon target
+        npc.behaviorState = 'wandering';
+        npc.nextTargetTime = Math.random() * 5;
+        npc.targetPosition = null;
+      }
     }
     
-    const newX = npc.position.x + npc.walkDir.x * npc.walkSpeed * deltaTime;
-    const newZ = npc.position.z + npc.walkDir.z * npc.walkSpeed * deltaTime;
+    // Update NPC position
+    npc.group.position.set(npc.position.x, 0, npc.position.z);
     
-    if (Math.abs(newX) < 80 && Math.abs(newZ) < 80) {
-      npc.position.x = newX;
-      npc.position.z = newZ;
-      npc.group.position.set(npc.position.x, 0, npc.position.z);
-    } else {
-      npc.walkDir.multiplyScalar(-1);
+    // Rotate NPC to face movement direction (optional)
+    if (npc.walkDir.length() > 0.1) {
+      const angle = Math.atan2(npc.walkDir.x, npc.walkDir.z);
+      npc.group.rotation.y = angle;
     }
   });
+}
+
+function findNearestSpäti(position) {
+  let nearestSpäti = null;
+  let nearestDistance = Infinity;
+  
+  GameState.interactables.forEach(interactable => {
+    if (interactable.type === 'späti') {
+      const distance = position.distanceTo(interactable.position);
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearestSpäti = interactable;
+      }
+    }
+  });
+  
+  return nearestDistance < 40 ? nearestSpäti : null;
+}
+
+function checkNPCCollision(x, z) {
+  const npcRadius = 0.5;
+  
+  // Check against buildings (smaller radius for NPCs)
+  for (const building of GameState.buildings) {
+    const halfW = building.w / 2 + npcRadius;
+    const halfD = building.d / 2 + npcRadius;
+    
+    if (x >= building.x - halfW && x <= building.x + halfW &&
+        z >= building.z - halfD && z <= building.z + halfD) {
+      return true;
+    }
+  }
+  
+  return false;
 }
 
 function updateGameTime(deltaTime) {
@@ -1354,12 +1603,90 @@ function handleInteraction() {
     if (nearbyInteractable.type === 'trashbin') {
       searchTrashBin(nearbyInteractable);
     } else if (nearbyInteractable.type === 'späti') {
-      showMessage('🏪 Späti: "Moin! Was brauchste?"');
-      // TODO: Open shop interface
+      interactWithSpäti();
     }
   } else {
-    showMessage('💭 Hier gibt es nichts zu interagieren');
+    // Check if near NPCs
+    const nearbyNPC = findNearbyNPC();
+    if (nearbyNPC) {
+      interactWithNPC(nearbyNPC);
+    } else {
+      showMessage('💭 Nichts in Reichweite zum Interagieren');
+    }
   }
+}
+
+function interactWithSpäti() {
+  const spätiMessages = [
+    '🏪 "Moin! Wat willste denn?"',
+    '🏪 "Bier kostet 1,20€. Zigaretten hab ich auch."',
+    '🏪 "Pfand nehm ich immer. Bring ruhig vorbei."',
+    '🏪 "24/7 offen, Kiez-Style!"'
+  ];
+  
+  const randomMsg = spätiMessages[Math.floor(Math.random() * spätiMessages.length)];
+  showMessage(randomMsg);
+  
+  // Simple trading - exchange Pfand for money
+  const pfandBottles = GameState.inventory.filter(item => item.name === 'Pfandflasche');
+  if (pfandBottles.length > 0) {
+    const pfandItem = pfandBottles[0];
+    const pfandCount = pfandItem.count || 1;
+    const pfandMoney = pfandCount * 0.25;
+    
+    GameState.money += pfandMoney;
+    GameState.inventory = GameState.inventory.filter(item => item.name !== 'Pfandflasche');
+    
+    showMessage(`💰 ${pfandCount}x Pfand verkauft für ${pfandMoney.toFixed(2)}€!`);
+  }
+}
+
+function findNearbyNPC() {
+  const playerPos = GameState.playerPosition;
+  
+  for (const npc of GameState.npcs) {
+    const distance = playerPos.distanceTo(npc.position);
+    if (distance <= 3) { // Within 3 units
+      return npc;
+    }
+  }
+  
+  return null;
+}
+
+function interactWithNPC(npc) {
+  const npcDialogs = {
+    tourist: [
+      '🗺️ "Entschuldigung, wo ist der nächste U-Bahnhof?"',
+      '📸 "Können Sie ein Foto von mir machen?"',
+      '🏛️ "Ist das hier der echte Berlin-Kiez?"'
+    ],
+    punk: [
+      '🚬 "Haste mal ne Zigarette?"',
+      '🎸 "System ist eh kaputt, Mann."',
+      '💀 "Lass mich in Ruhe, Alter."'
+    ],
+    hipster: [
+      '☕ "Kennst du einen guten Coffee-Shop hier?"',
+      '🎨 "Diese Gegend wird leider zu mainstream."',
+      '🎵 "Diese Band kennst du bestimmt nicht..."'
+    ],
+    oma: [
+      '👵 "Früher war hier alles besser!"',
+      '🛒 "Der Späti hat die besten Preise."',
+      '🏠 "Ich wohne schon 40 Jahre hier im Kiez."'
+    ],
+    berliner: [
+      '🍺 "Ick geh gleich ins Späti, Bier holen."',
+      '🚇 "Die BVG ist mal wieder zu spät."',
+      '🏙️ "Berlin ist und bleibt arm aber sexy!"'
+    ]
+  };
+  
+  const dialogs = npcDialogs[npc.type] || npcDialogs.berliner;
+  const randomDialog = dialogs[Math.floor(Math.random() * dialogs.length)];
+  
+  showMessage(`👤 ${npc.type.toUpperCase()}: ${randomDialog}`);
 }
 
 function findNearestInteractable() {
