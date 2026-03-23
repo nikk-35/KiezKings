@@ -894,7 +894,7 @@ body {
 
   <!-- Desktop Controls Info -->
   <div class="desktop-info">
-    WASD: Bewegung | Maus: Blick | E: Interaktion | B: Betteln | Klick: Angriff | M: Karte | I: Inventar | Shift+P: Police Test
+    WASD: Bewegung | Maus: Blick | E: Interaktion | B: Betteln | Klick: Angriff | M: Karte | I: Inventar | Shift+P: Police Test | Shift+I: Debug
   </div>
   <div class="mobile-info">
     Joystick: Bewegung | E: Interaktion | B: Betteln | Hold: Angriff | ⚡: Sprint
@@ -1779,7 +1779,10 @@ function createBerlinNPC(x, z, type) {
     fightBackChance: fightBackChances[type] || 0.2,
     attackDamage: attackDamage,
     lastAttackTime: 0,
-    isAttacking: false
+    isAttacking: false,
+    
+    // Animation cleanup
+    activeIntervals: []
   });
   
   console.log(`👤 ${type} NPC spawned at (${x}, ${z})`);
@@ -1875,6 +1878,24 @@ function handleKeyDown(event) {
     showMessage('🚔 DEBUG: Wanted Level erhöht für Polizei-Test!');
   }
   
+  if (event.code === 'KeyI' && event.shiftKey) {
+    // Shift+I = Show interval debug info
+    let totalIntervals = 0;
+    GameState.npcs.forEach(npc => {
+      if (npc.activeIntervals) {
+        totalIntervals += npc.activeIntervals.length;
+      }
+    });
+    showMessage(`🔍 DEBUG: ${totalIntervals} active intervals, ${GameState.npcs.length} NPCs`);
+    console.log('Debug: Active intervals per NPC:', GameState.npcs.map(npc => ({
+      type: npc.type,
+      intervals: npc.activeIntervals ? npc.activeIntervals.length : 0,
+      state: npc.behaviorState,
+      health: npc.health,
+      isShaking: npc.isHitShaking
+    })));
+  }
+  
   // ESC menu system
   if (event.code === 'Escape') {
     if (GameState.menuOpen) closeMenu();
@@ -1938,11 +1959,17 @@ function performAttack(npc) {
   npc.isBeingAttacked = true;
   
   if (npc.health <= 0) {
+    console.log(`🔴 NPC ${npc.type} knocked out, clearing intervals...`);
+    
     // NPC is knocked out
     npc.isKnockedOut = true;
     npc.health = 0;
     npc.behaviorState = 'knockout';
     npc.respawnTimer = 30; // 30 second respawn timer
+    
+    // Clear any running animations (CRITICAL!)
+    clearNPCIntervals(npc);
+    npc.isHitShaking = false;
     
     // NPC falls down (visual change)
     npc.group.rotation.z = Math.PI / 2; // Rotate 90 degrees to "lay down"
@@ -1952,6 +1979,8 @@ function performAttack(npc) {
     
     // Increase wanted level for knockout
     increaseWantedLevel(2);
+    
+    console.log(`✅ NPC ${npc.type} knockout complete`);
   } else {
     // Determine if NPC fights back or flees
     if (npc.isFighter && Math.random() < 0.8) { // 80% chance fighters fight back
@@ -2012,9 +2041,12 @@ function triggerScreenPunch() {
 
 function triggerNPCHitShake(npc) {
   if (npc.isHitShaking) return; // Prevent multiple shakes
+  if (npc.isKnockedOut) return; // Don't shake dead NPCs
   
   npc.isHitShaking = true;
-  npc.group.style.animation = 'npcHitShake 0.4s ease-out';
+  
+  // Clear any existing intervals first
+  clearNPCIntervals(npc);
   
   // Apply shake via transform
   let shakeIntensity = 0.1;
@@ -2022,13 +2054,33 @@ function triggerNPCHitShake(npc) {
   let shakeStart = Date.now();
   
   const shakeInterval = setInterval(() => {
+    // Check if NPC still exists and is valid
+    if (!npc || npc.isKnockedOut || !npc.group || !npc.group.position) {
+      clearInterval(shakeInterval);
+      if (npc && npc.activeIntervals) {
+        const index = npc.activeIntervals.indexOf(shakeInterval);
+        if (index > -1) npc.activeIntervals.splice(index, 1);
+      }
+      return;
+    }
+    
     const elapsed = Date.now() - shakeStart;
     const progress = elapsed / shakeDuration;
     
     if (progress >= 1) {
       clearInterval(shakeInterval);
-      npc.group.position.set(npc.position.x, npc.group.position.y, npc.position.z);
+      
+      // Clean up
+      if (npc.group && npc.group.position) {
+        npc.group.position.set(npc.position.x, npc.group.position.y, npc.position.z);
+      }
       npc.isHitShaking = false;
+      
+      // Remove from intervals list
+      if (npc.activeIntervals) {
+        const index = npc.activeIntervals.indexOf(shakeInterval);
+        if (index > -1) npc.activeIntervals.splice(index, 1);
+      }
       return;
     }
     
@@ -2036,12 +2088,27 @@ function triggerNPCHitShake(npc) {
     const shakeX = (Math.random() - 0.5) * shake;
     const shakeZ = (Math.random() - 0.5) * shake;
     
-    npc.group.position.set(
-      npc.position.x + shakeX,
-      npc.group.position.y,
-      npc.position.z + shakeZ
-    );
+    if (npc.group && npc.group.position) {
+      npc.group.position.set(
+        npc.position.x + shakeX,
+        npc.group.position.y,
+        npc.position.z + shakeZ
+      );
+    }
   }, 16); // ~60fps
+  
+  // Track the interval
+  if (!npc.activeIntervals) npc.activeIntervals = [];
+  npc.activeIntervals.push(shakeInterval);
+}
+
+function clearNPCIntervals(npc) {
+  if (npc.activeIntervals) {
+    npc.activeIntervals.forEach(interval => {
+      clearInterval(interval);
+    });
+    npc.activeIntervals = [];
+  }
 }
 
 function findNearbyNPC() {
@@ -2061,6 +2128,10 @@ function findNearbyNPC() {
 }
 
 function respawnNPC(npc) {
+  // Clear any running intervals first (CRITICAL!)
+  clearNPCIntervals(npc);
+  npc.isHitShaking = false;
+  
   // Reset NPC to original state
   npc.health = npc.maxHealth;
   npc.isKnockedOut = false;
@@ -2365,41 +2436,98 @@ function gameLoop() {
 }
 
 function updateGame(deltaTime) {
-  // Handle input
-  updateMovement(deltaTime);
-  
-  // Update NPCs
-  updateNPCs(deltaTime);
-  
-  // Update police system
-  updatePoliceSystem(deltaTime);
-  
-  // Update wanted level decay (if hidden long enough)
-  if (GameState.isHidden && GameState.wantedLevel > 0) {
-    const currentTime = Date.now();
-    if (currentTime - GameState.lastSeenByPolice > 60000) { // 60 seconds hidden
-      decreaseWantedLevel();
-      GameState.lastSeenByPolice = currentTime; // Reset timer
+  try {
+    // Handle input
+    updateMovement(deltaTime);
+    
+    // Update NPCs
+    updateNPCs(deltaTime);
+    
+    // Update police system
+    updatePoliceSystem(deltaTime);
+    
+    // Update wanted level decay (if hidden long enough)
+    if (GameState.isHidden && GameState.wantedLevel > 0) {
+      const currentTime = Date.now();
+      if (currentTime - GameState.lastSeenByPolice > 60000) { // 60 seconds hidden
+        decreaseWantedLevel();
+        GameState.lastSeenByPolice = currentTime; // Reset timer
+      }
     }
+    
+    // Update game time
+    updateGameTime(deltaTime);
+    
+    // Update stats
+    updateStats(deltaTime);
+    
+    // Update begging system
+    updateBegging(deltaTime);
+    
+    // Update interaction prompts
+    updateInteractionPrompts();
+    
+    // Update police UI
+    updatePoliceUI();
+    
+    // Update camera
+    updateCamera();
+  } catch (error) {
+    console.error('🚨 Game update error:', error);
+    
+    // Emergency cleanup
+    emergencyCleanup();
+    
+    // Show error to user
+    showMessage('⚠️ Game Error - Reloading...');
+    
+    // Reload page after 2 seconds
+    setTimeout(() => {
+      location.reload();
+    }, 2000);
   }
+}
+
+function emergencyCleanup() {
+  console.log('🧹 Emergency cleanup running...');
   
-  // Update game time
-  updateGameTime(deltaTime);
+  // Clear all NPC intervals
+  GameState.npcs.forEach(npc => {
+    if (npc && npc.activeIntervals) {
+      clearNPCIntervals(npc);
+    }
+  });
   
-  // Update stats
-  updateStats(deltaTime);
+  console.log('✅ Emergency cleanup complete');
+}
+
+function performMaintenanceCleanup() {
+  // Count and clean up intervals
+  let totalIntervals = 0;
+  let cleanedUp = 0;
   
-  // Update begging system
-  updateBegging(deltaTime);
+  GameState.npcs.forEach(npc => {
+    if (npc.activeIntervals) {
+      totalIntervals += npc.activeIntervals.length;
+      
+      // Clean up intervals for knocked out NPCs
+      if (npc.isKnockedOut && npc.activeIntervals.length > 0) {
+        clearNPCIntervals(npc);
+        cleanedUp += npc.activeIntervals.length;
+      }
+      
+      // Clean up orphaned intervals (more than 2 per NPC is suspicious)
+      if (npc.activeIntervals.length > 2) {
+        console.warn(`🔍 NPC ${npc.type} has ${npc.activeIntervals.length} intervals, cleaning up`);
+        clearNPCIntervals(npc);
+        cleanedUp += npc.activeIntervals.length;
+      }
+    }
+  });
   
-  // Update interaction prompts
-  updateInteractionPrompts();
-  
-  // Update police UI
-  updatePoliceUI();
-  
-  // Update camera
-  updateCamera();
+  if (cleanedUp > 0) {
+    console.log(`🧹 Maintenance: Cleaned up ${cleanedUp} intervals (${totalIntervals} total)`);
+  }
 }
 
 function updateInteractionPrompts() {
@@ -2543,10 +2671,17 @@ function updateNPCs(deltaTime) {
     
     // Handle knocked out NPCs
     if (npc.behaviorState === 'knockout') {
+      // Make sure they're not moving/shaking
+      if (npc.isHitShaking) {
+        clearNPCIntervals(npc);
+        npc.isHitShaking = false;
+      }
+      
       // Update respawn timer
       npc.respawnTimer -= deltaTime;
       
       if (npc.respawnTimer <= 0) {
+        console.log(`🔄 Respawning ${npc.type}...`);
         respawnNPC(npc);
       }
       return;
