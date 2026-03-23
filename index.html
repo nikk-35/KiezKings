@@ -1297,8 +1297,9 @@ if (G.isMobile) {
         const nx = Math.cos(angle) * dist;
         const ny = Math.sin(angle) * dist;
         joystickThumb.style.transform = `translate(calc(-50% + ${nx}px), calc(-50% + ${ny}px))`;
-        G.moveInput.x = nx / maxDist;
-        G.moveInput.z = ny / maxDist;
+        // FIXED: Map joystick to correct movement direction
+        G.moveInput.x = nx / maxDist;     // Right/Left stays the same
+        G.moveInput.z = -ny / maxDist;    // Up/Down inverted: up = forward (negative Z)
       } else if (t.identifier === lookTouch.identifier) {
         G.yaw -= (t.clientX - lookTouch._lastX) * 0.006;
         G.pitch -= (t.clientY - lookTouch._lastY) * 0.006;
