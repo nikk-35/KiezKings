@@ -201,6 +201,11 @@ body {
   right: 20px;
 }
 
+#touchBegging {
+  bottom: 20px;
+  right: 150px;
+}
+
 /* Messages */
 #messageLog {
   position: fixed;
@@ -253,6 +258,114 @@ body {
   border-radius: 4px;
   font-weight: bold;
   margin-right: 8px;
+}
+
+/* Crime Interaction Menu */
+#crimeMenu {
+  position: fixed;
+  bottom: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.95);
+  border: 2px solid #FF6B6B;
+  border-radius: 12px;
+  padding: 20px;
+  z-index: 400;
+  display: none;
+  min-width: 250px;
+}
+
+#crimeMenu h3 {
+  color: #FF6B6B;
+  font-size: clamp(0.9rem, 2.2vw, 1.1rem);
+  text-align: center;
+  margin-bottom: 15px;
+  letter-spacing: 0.1em;
+}
+
+.crime-option {
+  background: rgba(255, 107, 107, 0.1);
+  border: 1px solid rgba(255, 107, 107, 0.3);
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin: 8px 0;
+  color: #FF6B6B;
+  cursor: pointer;
+  font-size: clamp(0.7rem, 1.8vw, 0.8rem);
+  transition: all 0.3s;
+  text-align: center;
+}
+
+.crime-option:hover {
+  background: rgba(255, 107, 107, 0.2);
+  border-color: #FF6B6B;
+  transform: translateY(-2px);
+}
+
+.crime-option.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: rgba(100, 100, 100, 0.1);
+  border-color: rgba(100, 100, 100, 0.3);
+  color: #999;
+}
+
+/* Wanted Level */
+#wantedLevel {
+  position: fixed;
+  top: 130px;
+  right: 20px;
+  z-index: 200;
+  background: rgba(0, 0, 0, 0.9);
+  border: 1px solid rgba(255, 107, 107, 0.4);
+  border-radius: 6px;
+  padding: 8px 12px;
+  display: none;
+}
+
+#wantedLevel h4 {
+  color: #FF6B6B;
+  font-size: clamp(0.6rem, 1.4vw, 0.7rem);
+  margin: 0 0 4px 0;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.wanted-stars {
+  color: #FF6B6B;
+  font-size: clamp(0.8rem, 1.8vw, 1rem);
+}
+
+/* Begging Mode */
+#beggingUI {
+  position: fixed;
+  top: 200px;
+  left: 20px;
+  z-index: 200;
+  background: rgba(0, 0, 0, 0.9);
+  border: 1px solid rgba(139, 69, 19, 0.4);
+  border-radius: 6px;
+  padding: 12px;
+  display: none;
+  min-width: 200px;
+}
+
+#beggingUI h4 {
+  color: #8B4513;
+  font-size: clamp(0.7rem, 1.6vw, 0.8rem);
+  margin: 0 0 8px 0;
+  letter-spacing: 0.1em;
+}
+
+#beggingUI .earnings {
+  color: #e8c547;
+  font-size: clamp(0.6rem, 1.4vw, 0.7rem);
+  margin-bottom: 4px;
+}
+
+#beggingUI .time {
+  color: #999;
+  font-size: clamp(0.5rem, 1.2vw, 0.6rem);
 }
 
 /* Desktop Info */
@@ -602,6 +715,29 @@ body {
   <div id="interactionPrompt">
     <span class="key">E</span><span id="interactionText">Interagieren</span>
   </div>
+  
+  <!-- Crime Interaction Menu -->
+  <div id="crimeMenu">
+    <h3>👤 NPC Aktionen</h3>
+    <div class="crime-option" id="crimeOption1">💬 Reden</div>
+    <div class="crime-option" id="crimeOption2">👋 Taschendiebstahl</div>
+    <div class="crime-option" id="crimeOption3">💰 Ausrauben (nur K.O.)</div>
+    <div class="crime-option" id="crimeOptionCancel">❌ Abbrechen</div>
+  </div>
+  
+  <!-- Wanted Level Display -->
+  <div id="wantedLevel">
+    <h4>🚔 Fahndung</h4>
+    <div class="wanted-stars" id="wantedStars">☆☆☆☆☆</div>
+  </div>
+  
+  <!-- Begging UI -->
+  <div id="beggingUI">
+    <h4>🪙 BETTELEI</h4>
+    <div class="earnings" id="beggingEarnings">Verdient: 0,00€</div>
+    <div class="time" id="beggingTime">Zeit: 0:00</div>
+    <div style="color: #999; font-size: 0.6rem; margin-top: 8px;">B drücken zum Aufhören</div>
+  </div>
 
   <!-- Touch Controls -->
   <div id="touchControls">
@@ -610,14 +746,15 @@ body {
     </div>
     <div class="action-btn" id="touchInteract">E</div>
     <div class="action-btn" id="touchSprint">⚡</div>
+    <div class="action-btn" id="touchBegging">🪙</div>
   </div>
 
   <!-- Desktop Controls Info -->
   <div class="desktop-info">
-    WASD: Bewegung | Maus: Blick | E: Interaktion | M: Karte | I: Inventar | ESC: Menü
+    WASD: Bewegung | Maus: Blick | E: Interaktion | B: Betteln | Klick: Angriff | M: Karte | I: Inventar
   </div>
   <div class="mobile-info">
-    Joystick: Bewegung | E: Interaktion | ⚡: Sprint
+    Joystick: Bewegung | E: Interaktion | B: Betteln | Hold: Angriff | ⚡: Sprint
   </div>
 </div>
 
@@ -771,7 +908,17 @@ const GameState = {
   ],
   
   // Interaction tracking
-  npcTypesSpokenTo: new Set()
+  npcTypesSpokenTo: new Set(),
+  
+  // Crime System
+  wantedLevel: 0, // 0-5 stars
+  isBegging: false,
+  beggingEarnings: 0,
+  beggingTime: 0,
+  
+  // Combat System
+  isInCombat: false,
+  combatTarget: null
 };
 
 // Loading System
@@ -849,8 +996,8 @@ async function startGame() {
   initializePlayer();
   
   showMessage('🏙️ Willkommen in Berlin! Du bist pleite und obdachlos...');
-  showMessage('💰 Sammle Pfandflaschen um zu überleben!');
-  showMessage('🎯 Folge den Missionen oben links für deine Story!');
+  showMessage('💰 Sammle Pfand oder werde kriminell um zu überleben!');
+  showMessage('🎯 B = Betteln | E = NPCs interagieren | Klick = Angreifen');
   
   // Show story intro
   setTimeout(() => {
@@ -1278,7 +1425,14 @@ function createBerlinNPC(x, z, type) {
     // Animation state
     walkCycle: 0,
     isMoving: false,
-    lastPosition: new THREE.Vector3(x, 0, z)
+    lastPosition: new THREE.Vector3(x, 0, z),
+    
+    // Combat state
+    health: 100,
+    isKnockedOut: false,
+    isBeingAttacked: false,
+    fleeingFrom: null,
+    hasBeenRobbed: false
   });
   
   console.log(`👤 ${type} NPC spawned at (${x}, ${z})`);
@@ -1345,7 +1499,7 @@ function setupInputHandling() {
   
   // Mouse (desktop)
   if (!GameState.isMobile) {
-    renderer.domElement.addEventListener('click', requestPointerLock);
+    renderer.domElement.addEventListener('click', handleClick);
     document.addEventListener('pointerlockchange', onPointerLockChange);
     document.addEventListener('mousemove', handleMouseMove);
   }
@@ -1365,12 +1519,14 @@ function handleKeyDown(event) {
   if (event.code === 'KeyE') handleInteraction();
   if (event.code === 'KeyM') toggleMap();
   if (event.code === 'KeyI') toggleInventory();
+  if (event.code === 'KeyB') toggleBegging();
   
   // ESC menu system
   if (event.code === 'Escape') {
     if (GameState.menuOpen) closeMenu();
     else if (GameState.mapOpen) closeMap();
     else if (GameState.inventoryOpen) closeInventory();
+    else if (document.getElementById('crimeMenu').style.display === 'block') closeCrimeMenu();
     else openMenu();
   }
 }
@@ -1379,9 +1535,80 @@ function handleKeyUp(event) {
   GameState.keys[event.code] = false;
 }
 
-function requestPointerLock() {
-  if (!GameState.started || GameState.dead || anyUIOpen()) return;
-  renderer.domElement.requestPointerLock();
+function handleClick(event) {
+  event.preventDefault();
+  
+  if (!GameState.started || GameState.dead || anyUIOpen()) {
+    return;
+  }
+  
+  // Check if clicking on NPC for combat
+  const nearbyNPC = findNearbyNPC();
+  if (nearbyNPC && nearbyNPC.distance <= 4) { // Within attack range
+    performAttack(nearbyNPC.npc);
+  } else if (!GameState.pointerLocked) {
+    // Request pointer lock if not attacking
+    renderer.domElement.requestPointerLock();
+  }
+}
+
+function performAttack(npc) {
+  if (npc.isKnockedOut) {
+    showMessage('💀 NPC ist bereits bewusstlos!');
+    return;
+  }
+  
+  // Reduce NPC health
+  npc.health -= 34; // 3 hits = knockout (100 / 3 ≈ 34)
+  npc.isBeingAttacked = true;
+  
+  if (npc.health <= 0) {
+    // NPC is knocked out
+    npc.isKnockedOut = true;
+    npc.health = 0;
+    npc.behaviorState = 'knockout';
+    
+    // NPC falls down (visual change)
+    npc.group.rotation.z = Math.PI / 2; // Rotate 90 degrees to "lay down"
+    npc.group.position.y = -0.2; // Lower to ground
+    
+    showMessage(`💥 ${npc.type} ist bewusstlos! Du kannst ihn ausrauben.`);
+    
+    // Increase wanted level for assault
+    increaseWantedLevel(2);
+  } else {
+    // NPC starts fleeing
+    npc.behaviorState = 'fleeing';
+    npc.fleeingFrom = GameState.playerPosition.clone();
+    npc.nextTargetTime = 15; // Flee for 15 seconds
+    
+    const hitMessages = [
+      `👊 ${npc.type} getroffen! Flüchtet jetzt!`,
+      `💥 Schlag gelandet! ${npc.type} rennt weg!`,
+      `🥊 Hit! ${npc.type} hat noch ${Math.ceil(npc.health)}% HP`
+    ];
+    
+    showMessage(hitMessages[Math.floor(Math.random() * hitMessages.length)]);
+    
+    // Small wanted level increase for assault
+    increaseWantedLevel(1);
+  }
+}
+
+function findNearbyNPC() {
+  const playerPos = GameState.playerPosition;
+  let closest = null;
+  let closestDistance = Infinity;
+  
+  for (const npc of GameState.npcs) {
+    const distance = playerPos.distanceTo(npc.position);
+    if (distance < closestDistance) {
+      closest = { npc, distance };
+      closestDistance = distance;
+    }
+  }
+  
+  return closest;
 }
 
 function onPointerLockChange() {
@@ -1481,6 +1708,27 @@ function setupTouchControls() {
     handleInteraction();
   }, { passive: false });
   
+  // Touch attack (double-tap or long press for mobile combat)
+  let touchTimeout;
+  renderer.domElement.addEventListener('touchstart', (event) => {
+    if (event.touches.length === 1 && !lookTouchId) {
+      touchTimeout = setTimeout(() => {
+        // Long press = attack
+        const nearbyNPCData = findNearbyNPC();
+        if (nearbyNPCData && nearbyNPCData.distance <= 4) {
+          performAttack(nearbyNPCData.npc);
+        }
+      }, 500); // 500ms long press
+    }
+  });
+  
+  renderer.domElement.addEventListener('touchend', () => {
+    if (touchTimeout) {
+      clearTimeout(touchTimeout);
+      touchTimeout = null;
+    }
+  });
+  
   document.getElementById('touchSprint').addEventListener('touchstart', (event) => {
     event.preventDefault();
     GameState.sprinting = true;
@@ -1489,6 +1737,11 @@ function setupTouchControls() {
   document.getElementById('touchSprint').addEventListener('touchend', () => {
     GameState.sprinting = false;
   });
+  
+  document.getElementById('touchBegging').addEventListener('touchstart', (event) => {
+    event.preventDefault();
+    toggleBegging();
+  }, { passive: false });
 }
 
 // Game Loop
@@ -1529,6 +1782,9 @@ function updateGame(deltaTime) {
   // Update stats
   updateStats(deltaTime);
   
+  // Update begging system
+  updateBegging(deltaTime);
+  
   // Update interaction prompts
   updateInteractionPrompts();
   
@@ -1538,7 +1794,7 @@ function updateGame(deltaTime) {
 
 function updateInteractionPrompts() {
   const nearestInteractable = findNearestInteractable();
-  const nearbyNPC = findNearbyNPC();
+  const nearbyNPCData = findNearbyNPC();
   const promptElement = document.getElementById('interactionPrompt');
   const textElement = document.getElementById('interactionText');
   
@@ -1560,16 +1816,32 @@ function updateInteractionPrompts() {
       textElement.textContent = 'Späti betreten';
       promptElement.style.opacity = '1';
     }
-  } else if (nearbyNPC) {
+  } else if (nearbyNPCData && nearbyNPCData.distance <= 3) {
     promptElement.style.display = 'block';
-    textElement.textContent = `Mit ${nearbyNPC.type} sprechen`;
+    if (nearbyNPCData.npc.isKnockedOut) {
+      textElement.textContent = `${nearbyNPCData.npc.type} - Crime-Optionen`;
+    } else {
+      textElement.textContent = `${nearbyNPCData.npc.type} - Interagieren`;
+    }
     promptElement.style.opacity = '1';
+  } else if (nearbyNPCData && nearbyNPCData.distance <= 4) {
+    // Show attack prompt if close enough to attack but not interact
+    promptElement.style.display = 'block';
+    textElement.textContent = `${nearbyNPCData.npc.type} - Klick/Hold zum Angreifen`;
+    promptElement.style.opacity = '0.8';
+    promptElement.style.borderColor = '#FF6B6B';
   } else {
     promptElement.style.display = 'none';
+    promptElement.style.borderColor = '#e8c547'; // Reset border color
   }
 }
 
 function updateMovement(deltaTime) {
+  // Don't move while begging
+  if (GameState.isBegging) {
+    return;
+  }
+  
   // Desktop input
   if (!GameState.isMobile) {
     GameState.moveInput.x = 0;
@@ -1647,6 +1919,43 @@ function checkCollision(x, z) {
 function updateNPCs(deltaTime) {
   GameState.npcs.forEach(npc => {
     npc.nextTargetTime -= deltaTime;
+    
+    // Handle knocked out NPCs
+    if (npc.behaviorState === 'knockout') {
+      // Do nothing, they stay down
+      return;
+    }
+    
+    // Handle fleeing NPCs
+    if (npc.behaviorState === 'fleeing') {
+      if (npc.nextTargetTime <= 0) {
+        // Stop fleeing, go back to wandering
+        npc.behaviorState = 'wandering';
+        npc.fleeingFrom = null;
+        npc.nextTargetTime = Math.random() * 5 + 2;
+        npc.isBeingAttacked = false;
+      } else {
+        // Continue fleeing from player
+        const fleeDirection = new THREE.Vector3()
+          .subVectors(npc.position, npc.fleeingFrom)
+          .normalize();
+        
+        const fleeSpeed = npc.walkSpeed * 2; // Run faster when fleeing
+        const newX = npc.position.x + fleeDirection.x * fleeSpeed * deltaTime;
+        const newZ = npc.position.z + fleeDirection.z * fleeSpeed * deltaTime;
+        
+        if (Math.abs(newX) < 110 && Math.abs(newZ) < 110 && !checkNPCCollision(newX, newZ)) {
+          npc.position.x = newX;
+          npc.position.z = newZ;
+        }
+        
+        // Update group position and continue with animation
+        npc.group.position.set(npc.position.x, 0, npc.position.z);
+        npc.isMoving = true; // Keep animation running
+        
+        return; // Skip normal AI behavior
+      }
+    }
     
     // NPC Behavior AI
     if (npc.behaviorState === 'waiting') {
@@ -1878,10 +2187,10 @@ function handleInteraction() {
       interactWithSpäti();
     }
   } else {
-    // Check if near NPCs
-    const nearbyNPC = findNearbyNPC();
-    if (nearbyNPC) {
-      interactWithNPC(nearbyNPC);
+    // Check if near NPCs - show crime menu instead of direct interaction
+    const nearbyNPCData = findNearbyNPC();
+    if (nearbyNPCData && nearbyNPCData.distance <= 3) {
+      showCrimeMenu(nearbyNPCData.npc);
     } else {
       showMessage('💭 Nichts in Reichweite zum Interagieren');
     }
@@ -2302,8 +2611,19 @@ document.getElementById('showControls').addEventListener('click', () => {
 });
 document.getElementById('showStats').addEventListener('click', () => {
   const playTime = Math.floor(gameClock ? gameClock.getElapsedTime() / 60 : 0);
-  showMessage(`📊 STATS: Spielzeit: ${playTime}min | Tag ${GameState.gameDay} | Geld: ${GameState.money.toFixed(2)}€ | Items: ${GameState.inventory.length}`);
+  const wantedText = GameState.wantedLevel > 0 ? ` | Fahndung: ${GameState.wantedLevel}★` : '';
+  showMessage(`📊 STATS: Spielzeit: ${playTime}min | Tag ${GameState.gameDay} | Geld: ${GameState.money.toFixed(2)}€ | Items: ${GameState.inventory.length}${wantedText}`);
 });
+
+// Crime menu event listeners
+document.getElementById('crimeOption1').addEventListener('click', () => handleCrimeAction('talk'));
+document.getElementById('crimeOption2').addEventListener('click', () => handleCrimeAction('pickpocket'));
+document.getElementById('crimeOption3').addEventListener('click', () => {
+  if (!document.getElementById('crimeOption3').classList.contains('disabled')) {
+    handleCrimeAction('rob');
+  }
+});
+document.getElementById('crimeOptionCancel').addEventListener('click', closeCrimeMenu);
 
 // Give player starting items
 function initializePlayer() {
@@ -2428,6 +2748,175 @@ function showStoryNotification(title, reward) {
 document.getElementById('storyNotification').addEventListener('click', () => {
   document.getElementById('storyNotification').style.display = 'none';
 });
+
+// Crime System Functions
+function toggleBegging() {
+  if (GameState.isBegging) {
+    stopBegging();
+  } else {
+    startBegging();
+  }
+}
+
+function startBegging() {
+  GameState.isBegging = true;
+  GameState.beggingTime = 0;
+  document.getElementById('beggingUI').style.display = 'block';
+  
+  // Player sits down (lower camera)
+  GameState.playerPosition.y = 1.2; // Lower than normal 1.7
+  
+  showMessage('🪙 Du sitzt auf dem Boden und bettelst...');
+  showMessage('💡 B drücken zum Aufhören. Geld kommt automatisch!');
+}
+
+function stopBegging() {
+  GameState.isBegging = false;
+  document.getElementById('beggingUI').style.display = 'none';
+  
+  // Player stands up
+  GameState.playerPosition.y = 1.7;
+  
+  showMessage(`🪙 Bettelei beendet! Verdient: ${GameState.beggingEarnings.toFixed(2)}€`);
+}
+
+function updateBegging(deltaTime) {
+  if (!GameState.isBegging) return;
+  
+  GameState.beggingTime += deltaTime;
+  
+  // Random chance for NPCs to give money (every few seconds)
+  if (Math.random() < deltaTime * 0.1) { // 10% chance per second
+    const donation = Math.random() * 0.5 + 0.1; // 0.10€ to 0.60€
+    GameState.money += donation;
+    GameState.beggingEarnings += donation;
+    
+    const messages = [
+      `💰 Ein Tourist gibt dir ${donation.toFixed(2)}€`,
+      `🪙 Eine Oma wirft ${donation.toFixed(2)}€ in den Hut`,
+      `💝 Jemand spendet ${donation.toFixed(2)}€`,
+      `🤝 Ein Berliner gibt ${donation.toFixed(2)}€`
+    ];
+    
+    if (Math.random() < 0.3) { // 30% chance to show message
+      showMessage(messages[Math.floor(Math.random() * messages.length)]);
+    }
+  }
+  
+  // Update UI
+  const earnings = document.getElementById('beggingEarnings');
+  const time = document.getElementById('beggingTime');
+  
+  earnings.textContent = `Verdient: ${GameState.beggingEarnings.toFixed(2)}€`;
+  
+  const minutes = Math.floor(GameState.beggingTime / 60);
+  const seconds = Math.floor(GameState.beggingTime % 60);
+  time.textContent = `Zeit: ${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
+
+function showCrimeMenu(npc) {
+  GameState.combatTarget = npc;
+  const menu = document.getElementById('crimeMenu');
+  const option3 = document.getElementById('crimeOption3');
+  
+  // Enable/disable rob option based on NPC state
+  if (npc.isKnockedOut && !npc.hasBeenRobbed) {
+    option3.classList.remove('disabled');
+    option3.textContent = '💰 Ausrauben';
+  } else if (npc.hasBeenRobbed) {
+    option3.classList.add('disabled');
+    option3.textContent = '💰 Bereits ausgeraubt';
+  } else {
+    option3.classList.add('disabled');
+    option3.textContent = '💰 Ausrauben (erst K.O. schlagen!)';
+  }
+  
+  menu.style.display = 'block';
+}
+
+function closeCrimeMenu() {
+  document.getElementById('crimeMenu').style.display = 'none';
+  GameState.combatTarget = null;
+}
+
+function handleCrimeAction(action) {
+  const npc = GameState.combatTarget;
+  if (!npc) return;
+  
+  if (action === 'talk') {
+    closeCrimeMenu();
+    interactWithNPC(npc);
+  } else if (action === 'pickpocket') {
+    performPickpocket(npc);
+  } else if (action === 'rob') {
+    performRobbery(npc);
+  }
+  
+  closeCrimeMenu();
+}
+
+function performPickpocket(npc) {
+  const success = Math.random() > 0.3; // 70% success rate
+  
+  if (success) {
+    const stolenAmount = Math.random() * 5 + 1; // 1-6€
+    GameState.money += stolenAmount;
+    addToInventory('💰', 'Diebesgut');
+    
+    showMessage(`👋 Taschendiebstahl erfolgreich! +${stolenAmount.toFixed(2)}€`);
+    
+    // Small wanted level increase
+    increaseWantedLevel(1);
+  } else {
+    showMessage('❌ Taschendiebstahl gescheitert! NPC ist misstrauisch geworden');
+    npc.isBeingAttacked = true; // NPC becomes alert
+    
+    // Bigger wanted level increase if caught
+    increaseWantedLevel(2);
+  }
+}
+
+function performRobbery(npc) {
+  if (!npc.isKnockedOut || npc.hasBeenRobbed) {
+    showMessage('❌ Kann nur bewusstlose NPCs ausrauben!');
+    return;
+  }
+  
+  const robbedAmount = Math.random() * 20 + 10; // 10-30€
+  GameState.money += robbedAmount;
+  npc.hasBeenRobbed = true;
+  
+  addToInventory('💰', 'Raubgut');
+  addToInventory('📱', 'Gestohlenes Handy');
+  
+  showMessage(`💰 Raub erfolgreich! +${robbedAmount.toFixed(2)}€ + Items`);
+  
+  // Major wanted level increase
+  increaseWantedLevel(3);
+}
+
+function increaseWantedLevel(amount) {
+  GameState.wantedLevel = Math.min(5, GameState.wantedLevel + amount);
+  updateWantedDisplay();
+  
+  if (GameState.wantedLevel > 0) {
+    document.getElementById('wantedLevel').style.display = 'block';
+  }
+  
+  const levelNames = ['', 'Verdächtig', 'Gesucht', 'Gefährlich', 'Hochgefährlich', 'Staatsfeind #1'];
+  showMessage(`🚔 Fahndungslevel: ${levelNames[GameState.wantedLevel]}`);
+}
+
+function updateWantedDisplay() {
+  const starsElement = document.getElementById('wantedStars');
+  let stars = '';
+  
+  for (let i = 0; i < 5; i++) {
+    stars += i < GameState.wantedLevel ? '★' : '☆';
+  }
+  
+  starsElement.textContent = stars;
+}
 
 // Start loading
 simulateLoading();
