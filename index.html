@@ -1968,7 +1968,8 @@ function update() {
         return div;
       })();
       const direction = G.moveInput.z < 0 ? 'FORWARD' : G.moveInput.z > 0 ? 'BACKWARD' : G.moveInput.x < 0 ? 'LEFT' : G.moveInput.x > 0 ? 'RIGHT' : '';
-      debugDiv.textContent = `${direction} | INPUT: x=${G.moveInput.x}, z=${G.moveInput.z} | POS: ${G.playerPos.x.toFixed(1)}, ${G.playerPos.z.toFixed(1)}`;
+      const yawDegrees = (G.yaw * 180 / Math.PI).toFixed(0);
+      debugDiv.textContent = `${direction} | YAW: ${yawDegrees}° | INPUT: x=${G.moveInput.x}, z=${G.moveInput.z} | POS: ${G.playerPos.x.toFixed(1)}, ${G.playerPos.z.toFixed(1)}`;
     } else {
       const debugDiv = document.getElementById('debugInput');
       if (debugDiv) debugDiv.textContent = `NO INPUT | POS: ${G.playerPos.x.toFixed(1)}, ${G.playerPos.z.toFixed(1)}`;
