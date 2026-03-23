@@ -272,6 +272,67 @@ body {
   cursor: none !important;
 }
 
+/* Combat Animations */
+@keyframes npcHitShake {
+  0% { transform: translateX(0); }
+  25% { transform: translateX(-3px) rotateZ(-2deg); }
+  50% { transform: translateX(3px) rotateZ(1deg); }
+  75% { transform: translateX(-2px) rotateZ(-1deg); }
+  100% { transform: translateX(0) rotateZ(0deg); }
+}
+
+@keyframes attackFlash {
+  0% { background: rgba(255, 0, 0, 0); }
+  50% { background: rgba(255, 0, 0, 0.3); }
+  100% { background: rgba(255, 0, 0, 0); }
+}
+
+@keyframes screenPunch {
+  0% { transform: scale(1) rotateZ(0deg); }
+  50% { transform: scale(1.02) rotateZ(0.5deg); }
+  100% { transform: scale(1) rotateZ(0deg); }
+}
+
+/* Attack Flash Overlay */
+#attackFlash {
+  position: fixed;
+  inset: 0;
+  background: rgba(255, 0, 0, 0);
+  pointer-events: none;
+  z-index: 500;
+  display: none;
+}
+
+/* Screen punch effect for canvas */
+.screen-punch {
+  animation: screenPunch 0.3s ease-out;
+}
+
+/* Locked Feature Style */
+.crime-option.locked {
+  position: relative;
+  opacity: 0.6;
+  background: rgba(100, 100, 100, 0.1);
+  border-color: rgba(100, 100, 100, 0.3);
+  color: #999;
+}
+
+.crime-option.locked::after {
+  content: '🔒';
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 12px;
+}
+
+.crime-option.cooldown {
+  opacity: 0.4;
+  background: rgba(255, 165, 0, 0.1);
+  border-color: rgba(255, 165, 0, 0.3);
+  color: #ff6600;
+}
+
 /* Messages */
 #messageLog {
   position: fixed;
@@ -817,6 +878,9 @@ body {
   
   <!-- Custom Cursor -->
   <div id="customCursor"></div>
+  
+  <!-- Attack Flash -->
+  <div id="attackFlash"></div>
 
   <!-- Touch Controls -->
   <div id="touchControls">
@@ -998,6 +1062,12 @@ const GameState = {
   // Combat System
   isInCombat: false,
   combatTarget: null,
+  lastAttackTime: 0,
+  
+  // Unlock System
+  pickpocketUnlocked: false,
+  lastPickpocketTime: 0,
+  pickpocketCooldown: 0,
   
   // Police System
   policeNPCs: [],
@@ -1657,10 +1727,16 @@ function createBerlinNPC(x, z, type) {
     
     // Combat state
     health: 100,
+    maxHealth: 100,
     isKnockedOut: false,
     isBeingAttacked: false,
     fleeingFrom: null,
-    hasBeenRobbed: false
+    hasBeenRobbed: false,
+    isHitShaking: false,
+    respawnTimer: 0,
+    originalPosition: new THREE.Vector3(x, 0, z),
+    fleeSpeed: Math.random() > 0.5 ? 2.5 : 1.2, // Random flee speed: fast or slow
+    canBePickpocketed: true
   });
   
   console.log(`👤 ${type} NPC spawned at (${x}, ${z})`);
@@ -1788,10 +1864,26 @@ function handleClick(event) {
 }
 
 function performAttack(npc) {
+  const currentTime = Date.now();
+  
+  // Attack cooldown check (prevent spam clicking)
+  if (currentTime - GameState.lastAttackTime < 500) {
+    return; // 0.5 second cooldown between attacks
+  }
+  
   if (npc.isKnockedOut) {
     showMessage('💀 NPC ist bereits bewusstlos!');
     return;
   }
+  
+  GameState.lastAttackTime = currentTime;
+  
+  // FPS Attack Visual Feedback
+  triggerAttackFlash();
+  triggerScreenPunch();
+  
+  // NPC Hit Animation
+  triggerNPCHitShake(npc);
   
   // Reduce NPC health
   npc.health -= 34; // 3 hits = knockout (100 / 3 ≈ 34)
@@ -1802,25 +1894,26 @@ function performAttack(npc) {
     npc.isKnockedOut = true;
     npc.health = 0;
     npc.behaviorState = 'knockout';
+    npc.respawnTimer = 30; // 30 second respawn timer
     
     // NPC falls down (visual change)
     npc.group.rotation.z = Math.PI / 2; // Rotate 90 degrees to "lay down"
     npc.group.position.y = -0.2; // Lower to ground
     
-    showMessage(`💥 ${npc.type} ist bewusstlos! Du kannst ihn ausrauben.`);
+    showMessage(`💥 ${npc.type} ist bewusstlos! Respawn in 30s.`);
     
-    // Increase wanted level for assault
+    // Increase wanted level for knockout
     increaseWantedLevel(2);
   } else {
-    // NPC starts fleeing
+    // NPC starts fleeing with variable speed
     npc.behaviorState = 'fleeing';
     npc.fleeingFrom = GameState.playerPosition.clone();
-    npc.nextTargetTime = 15; // Flee for 15 seconds
+    npc.nextTargetTime = Math.random() * 10 + 10; // Flee for 10-20 seconds
     
     const hitMessages = [
-      `👊 ${npc.type} getroffen! Flüchtet jetzt!`,
-      `💥 Schlag gelandet! ${npc.type} rennt weg!`,
-      `🥊 Hit! ${npc.type} hat noch ${Math.ceil(npc.health)}% HP`
+      `👊 ${npc.type} getroffen! ${npc.fleeSpeed > 2 ? 'Rennt' : 'Flüchtet'} weg!`,
+      `💥 Schlag gelandet! ${Math.ceil((npc.health / npc.maxHealth) * 100)}% HP übrig`,
+      `🥊 Hit! ${npc.type} ${npc.fleeSpeed > 2 ? 'sprintet' : 'geht'} weg!`
     ];
     
     showMessage(hitMessages[Math.floor(Math.random() * hitMessages.length)]);
@@ -1828,6 +1921,60 @@ function performAttack(npc) {
     // Small wanted level increase for assault
     increaseWantedLevel(1);
   }
+}
+
+function triggerAttackFlash() {
+  const flash = document.getElementById('attackFlash');
+  flash.style.display = 'block';
+  flash.style.animation = 'attackFlash 0.2s ease-out';
+  
+  setTimeout(() => {
+    flash.style.display = 'none';
+    flash.style.animation = '';
+  }, 200);
+}
+
+function triggerScreenPunch() {
+  const canvas = renderer.domElement;
+  canvas.classList.add('screen-punch');
+  
+  setTimeout(() => {
+    canvas.classList.remove('screen-punch');
+  }, 300);
+}
+
+function triggerNPCHitShake(npc) {
+  if (npc.isHitShaking) return; // Prevent multiple shakes
+  
+  npc.isHitShaking = true;
+  npc.group.style.animation = 'npcHitShake 0.4s ease-out';
+  
+  // Apply shake via transform
+  let shakeIntensity = 0.1;
+  let shakeDuration = 400; // ms
+  let shakeStart = Date.now();
+  
+  const shakeInterval = setInterval(() => {
+    const elapsed = Date.now() - shakeStart;
+    const progress = elapsed / shakeDuration;
+    
+    if (progress >= 1) {
+      clearInterval(shakeInterval);
+      npc.group.position.set(npc.position.x, npc.group.position.y, npc.position.z);
+      npc.isHitShaking = false;
+      return;
+    }
+    
+    const shake = shakeIntensity * (1 - progress);
+    const shakeX = (Math.random() - 0.5) * shake;
+    const shakeZ = (Math.random() - 0.5) * shake;
+    
+    npc.group.position.set(
+      npc.position.x + shakeX,
+      npc.group.position.y,
+      npc.position.z + shakeZ
+    );
+  }, 16); // ~60fps
 }
 
 function findNearbyNPC() {
@@ -1844,6 +1991,38 @@ function findNearbyNPC() {
   }
   
   return closest;
+}
+
+function respawnNPC(npc) {
+  // Reset NPC to original state
+  npc.health = npc.maxHealth;
+  npc.isKnockedOut = false;
+  npc.isBeingAttacked = false;
+  npc.fleeingFrom = null;
+  npc.hasBeenRobbed = false;
+  npc.canBePickpocketed = true;
+  npc.behaviorState = 'wandering';
+  npc.nextTargetTime = Math.random() * 5 + 2;
+  
+  // Reset visual state
+  npc.group.rotation.z = 0;
+  npc.group.position.y = 0;
+  
+  // Move to new random position (avoid camping)
+  const respawnRadius = 20;
+  const angle = Math.random() * Math.PI * 2;
+  const distance = Math.random() * respawnRadius + 10;
+  
+  npc.position.x = npc.originalPosition.x + Math.cos(angle) * distance;
+  npc.position.z = npc.originalPosition.z + Math.sin(angle) * distance;
+  
+  // Ensure within bounds
+  npc.position.x = Math.max(-100, Math.min(100, npc.position.x));
+  npc.position.z = Math.max(-100, Math.min(100, npc.position.z));
+  
+  npc.group.position.set(npc.position.x, 0, npc.position.z);
+  
+  showMessage(`👤 Ein neuer ${npc.type} ist im Kiez aufgetaucht!`);
 }
 
 function onPointerLockChange() {
@@ -2172,7 +2351,12 @@ function updateNPCs(deltaTime) {
     
     // Handle knocked out NPCs
     if (npc.behaviorState === 'knockout') {
-      // Do nothing, they stay down
+      // Update respawn timer
+      npc.respawnTimer -= deltaTime;
+      
+      if (npc.respawnTimer <= 0) {
+        respawnNPC(npc);
+      }
       return;
     }
     
@@ -2190,7 +2374,8 @@ function updateNPCs(deltaTime) {
           .subVectors(npc.position, npc.fleeingFrom)
           .normalize();
         
-        const fleeSpeed = npc.walkSpeed * 2; // Run faster when fleeing
+        // Use variable flee speed (set when NPC was created)
+        const fleeSpeed = npc.walkSpeed * npc.fleeSpeed; // Variable speed: slow (1.2x) or fast (2.5x)
         const newX = npc.position.x + fleeDirection.x * fleeSpeed * deltaTime;
         const newZ = npc.position.z + fleeDirection.z * fleeSpeed * deltaTime;
         
@@ -2309,7 +2494,9 @@ function updateNPCs(deltaTime) {
     
     // Animate legs if moving
     if (npc.isMoving) {
-      npc.walkCycle += deltaTime * 8; // Walking speed
+      // Adjust animation speed based on movement speed
+      const animationSpeed = npc.behaviorState === 'fleeing' ? (npc.fleeSpeed > 2 ? 16 : 10) : 8;
+      npc.walkCycle += deltaTime * animationSpeed;
       
       // Animate each leg
       if (npc.group.userData.legs) {
@@ -2978,6 +3165,9 @@ function completeQuest(quest) {
   if (quest.id === 'first_money') {
     addToInventory('🥪', 'Gratis-Snack');
     GameState.stats.hunger = Math.min(100, GameState.stats.hunger + 30);
+    // Unlock pickpocketing
+    GameState.pickpocketUnlocked = true;
+    showMessage('🔓 FREIGESCHALTET: Taschendiebstahl ist jetzt verfügbar!');
   } else if (quest.id === 'hostel_money') {
     GameState.storyProgress.hasSleptInHostel = true;
     GameState.playerLevel = 2;
@@ -3098,7 +3288,11 @@ function updateBegging(deltaTime) {
 function showCrimeMenu(npc) {
   GameState.combatTarget = npc;
   const menu = document.getElementById('crimeMenu');
+  const option2 = document.getElementById('crimeOption2');
   const option3 = document.getElementById('crimeOption3');
+  
+  // Update pickpocket option
+  updatePickpocketOption(option2, npc);
   
   // Enable/disable rob option based on NPC state
   if (npc.isKnockedOut && !npc.hasBeenRobbed) {
@@ -3116,6 +3310,31 @@ function showCrimeMenu(npc) {
   showCustomCursor('crime'); // Show crime cursor
 }
 
+function updatePickpocketOption(option, npc) {
+  option.classList.remove('locked', 'disabled', 'cooldown');
+  
+  const currentTime = Date.now();
+  const timeSinceLastPickpocket = currentTime - GameState.lastPickpocketTime;
+  
+  if (!GameState.pickpocketUnlocked) {
+    // Pickpocket is locked
+    option.classList.add('locked');
+    option.textContent = '👋 Taschendiebstahl 🔒';
+  } else if (timeSinceLastPickpocket < GameState.pickpocketCooldown) {
+    // Pickpocket is on cooldown
+    const remainingSeconds = Math.ceil((GameState.pickpocketCooldown - timeSinceLastPickpocket) / 1000);
+    option.classList.add('cooldown');
+    option.textContent = `👋 Taschendiebstahl (${remainingSeconds}s)`;
+  } else if (!npc.canBePickpocketed) {
+    // NPC was already robbed, can't pickpocket
+    option.classList.add('disabled');
+    option.textContent = '👋 Taschendiebstahl (nicht mehr möglich)';
+  } else {
+    // Available
+    option.textContent = '👋 Taschendiebstahl';
+  }
+}
+
 function closeCrimeMenu() {
   document.getElementById('crimeMenu').style.display = 'none';
   GameState.combatTarget = null;
@@ -3129,7 +3348,27 @@ function handleCrimeAction(action) {
   if (action === 'talk') {
     closeCrimeMenu();
     interactWithNPC(npc);
+    return;
   } else if (action === 'pickpocket') {
+    if (!GameState.pickpocketUnlocked) {
+      showMessage('🔒 Schließe erst Quest "Erste Euros" ab!');
+      return;
+    }
+    
+    const currentTime = Date.now();
+    const timeSinceLastPickpocket = currentTime - GameState.lastPickpocketTime;
+    
+    if (timeSinceLastPickpocket < GameState.pickpocketCooldown) {
+      const remainingSeconds = Math.ceil((GameState.pickpocketCooldown - timeSinceLastPickpocket) / 1000);
+      showMessage(`⏰ Taschendiebstahl Cooldown: ${remainingSeconds}s`);
+      return;
+    }
+    
+    if (!npc.canBePickpocketed) {
+      showMessage('❌ Taschendiebstahl nicht mehr möglich bei diesem NPC!');
+      return;
+    }
+    
     performPickpocket(npc);
   } else if (action === 'rob') {
     performRobbery(npc);
@@ -3141,18 +3380,30 @@ function handleCrimeAction(action) {
 function performPickpocket(npc) {
   const success = Math.random() > 0.3; // 70% success rate
   
+  // Set cooldown (60-300 seconds in 60s steps)
+  const cooldownOptions = [60, 120, 180, 240, 300];
+  GameState.pickpocketCooldown = cooldownOptions[Math.floor(Math.random() * cooldownOptions.length)] * 1000;
+  GameState.lastPickpocketTime = Date.now();
+  
   if (success) {
     const stolenAmount = Math.random() * 5 + 1; // 1-6€
     GameState.money += stolenAmount;
     addToInventory('💰', 'Diebesgut');
     
+    const cooldownMinutes = Math.floor(GameState.pickpocketCooldown / 60000);
     showMessage(`👋 Taschendiebstahl erfolgreich! +${stolenAmount.toFixed(2)}€`);
+    showMessage(`⏰ Nächster Versuch in ${cooldownMinutes}min möglich`);
     
     // Small wanted level increase
     increaseWantedLevel(1);
   } else {
     showMessage('❌ Taschendiebstahl gescheitert! NPC ist misstrauisch geworden');
     npc.isBeingAttacked = true; // NPC becomes alert
+    
+    // Make NPC flee
+    npc.behaviorState = 'fleeing';
+    npc.fleeingFrom = GameState.playerPosition.clone();
+    npc.nextTargetTime = 10;
     
     // Bigger wanted level increase if caught
     increaseWantedLevel(2);
@@ -3168,11 +3419,13 @@ function performRobbery(npc) {
   const robbedAmount = Math.random() * 20 + 10; // 10-30€
   GameState.money += robbedAmount;
   npc.hasBeenRobbed = true;
+  npc.canBePickpocketed = false; // Can't pickpocket after robbery
   
   addToInventory('💰', 'Raubgut');
   addToInventory('📱', 'Gestohlenes Handy');
   
   showMessage(`💰 Raub erfolgreich! +${robbedAmount.toFixed(2)}€ + Items`);
+  showMessage(`🚫 Taschendiebstahl bei diesem NPC nicht mehr möglich`);
   
   // Major wanted level increase
   increaseWantedLevel(3);
