@@ -2222,18 +2222,7 @@ function interactWithSpäti() {
   }
 }
 
-function findNearbyNPC() {
-  const playerPos = GameState.playerPosition;
-  
-  for (const npc of GameState.npcs) {
-    const distance = playerPos.distanceTo(npc.position);
-    if (distance <= 3) { // Within 3 units
-      return npc;
-    }
-  }
-  
-  return null;
-}
+
 
 function interactWithNPC(npc) {
   // Track NPC interaction for quest
