@@ -1324,13 +1324,15 @@ function buildWorld() {
   ];
   collectibles.forEach(c => createCollectible(c[0], c[1], c[2], c[3]));
   
-  // NPCs
+  // NPCs - Berlin street characters
   createNPC(15, 8, 'tourist');
-  createNPC(-12, -5, 'punk');
+  createNPC(-12, -5, 'punk');  
   createNPC(8, 30, 'hipster');
   createNPC(-8, -35, 'oma');
-  createNPC(25, -8, 'musician');
-  createNPC(-20, 7, 'dealer');
+  createNPC(25, -8, 'berliner');
+  createNPC(-20, 7, 'tourist');
+  createNPC(30, 15, 'hipster');
+  createNPC(-25, -12, 'punk');
   
   // Debris / urban details
   const debrisMat = new THREE.MeshLambertMaterial({ color: '#555' });
