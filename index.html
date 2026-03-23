@@ -270,6 +270,155 @@ body {
   letter-spacing: 0.15em;
   text-transform: uppercase;
 }
+
+/* MAP UI */
+#mapUI {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.95);
+  z-index: 400;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+#mapUI h2 {
+  color: #e8c547;
+  font-size: clamp(1.2rem, 3vw, 1.6rem);
+  letter-spacing: 0.2em;
+  margin-bottom: 1em;
+}
+
+#mapCanvas {
+  border: 2px solid #e8c547;
+  border-radius: 8px;
+  background: #1a1a1a;
+}
+
+#mapUI .close-hint {
+  color: #999;
+  font-size: clamp(0.7rem, 1.8vw, 0.85rem);
+  margin-top: 1.5em;
+  letter-spacing: 0.1em;
+}
+
+/* MENU UI */
+#menuUI {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.95);
+  z-index: 400;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+#menuUI h2 {
+  color: #e8c547;
+  font-size: clamp(1.4rem, 3.5vw, 2rem);
+  letter-spacing: 0.2em;
+  margin-bottom: 1.5em;
+}
+
+.menu-item {
+  color: #ccc;
+  font-size: clamp(0.9rem, 2.2vw, 1.1rem);
+  margin: 0.8em 0;
+  cursor: pointer;
+  letter-spacing: 0.1em;
+  transition: color 0.3s;
+  padding: 0.5em 1em;
+  border: 1px solid transparent;
+  border-radius: 4px;
+}
+
+.menu-item:hover {
+  color: #e8c547;
+  border-color: #e8c547;
+  background: rgba(232, 197, 71, 0.1);
+}
+
+#menuUI .close-hint {
+  color: #999;
+  font-size: clamp(0.7rem, 1.8vw, 0.85rem);
+  margin-top: 2em;
+  letter-spacing: 0.1em;
+}
+
+/* INVENTORY UI */
+#inventoryUI {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.9);
+  z-index: 400;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+#inventoryUI h2 {
+  color: #e8c547;
+  font-size: clamp(1.2rem, 3vw, 1.6rem);
+  letter-spacing: 0.2em;
+  margin-bottom: 1em;
+}
+
+.inventory-stats {
+  color: #ccc;
+  margin-bottom: 1.5em;
+  text-align: center;
+}
+
+.inventory-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  gap: 10px;
+  max-width: 400px;
+  padding: 0 20px;
+}
+
+.inventory-slot {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  padding: 12px;
+  text-align: center;
+  min-height: 60px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.inventory-slot .emoji {
+  font-size: 1.5rem;
+  margin-bottom: 4px;
+}
+
+.inventory-slot .name {
+  color: #ccc;
+  font-size: 0.7rem;
+}
+
+.inventory-slot.empty {
+  opacity: 0.3;
+}
+
+.inventory-slot.empty::before {
+  content: "—";
+  color: #666;
+  font-size: 1.5rem;
+}
+
+#inventoryUI .close-hint {
+  color: #999;
+  font-size: clamp(0.7rem, 1.8vw, 0.85rem);
+  margin-top: 1.5em;
+  letter-spacing: 0.1em;
+}
 </style>
 </head>
 <body>
@@ -338,6 +487,39 @@ body {
   </div>
 </div>
 
+<!-- MAP UI -->
+<div id="mapUI">
+  <h2>🗺️ KIEZ MAP</h2>
+  <canvas id="mapCanvas" width="400" height="400"></canvas>
+  <div class="close-hint">[ M ] oder [ ESC ] zum Schließen</div>
+</div>
+
+<!-- MENU UI -->
+<div id="menuUI">
+  <h2>⚙️ KIEZKINGS MENÜ</h2>
+  <div class="menu-item" id="resumeGame">▶️ Spiel Fortsetzen</div>
+  <div class="menu-item" id="showControls">🎮 Steuerung</div>
+  <div class="menu-item" id="showStats">📊 Statistiken</div>
+  <div class="menu-item" id="restartGame">🔄 Neues Spiel</div>
+  <div class="close-hint">[ ESC ] zum Schließen</div>
+</div>
+
+<!-- INVENTORY UI -->
+<div id="inventoryUI">
+  <h2>🎒 INVENTAR</h2>
+  <div class="inventory-stats">
+    <div style="margin-bottom: 1em;">
+      Geld: <span id="invMoney" style="color:#e8c547;">0,00€</span> | 
+      Gewicht: <span id="invWeight">0/50 kg</span> | 
+      Items: <span id="invCount">0/12</span>
+    </div>
+  </div>
+  <div class="inventory-grid" id="inventoryGrid">
+    <!-- Inventory slots will be populated by JavaScript -->
+  </div>
+  <div class="close-hint">[ I ] oder [ ESC ] zum Schließen</div>
+</div>
+
 <script type="module">
 // KIEZKINGS v3.0 - CLEAN REBUILD
 console.log('🎮 KIEZKINGS v3.0 BUILD STARTING...');
@@ -388,7 +570,10 @@ const GameState = {
   buildings: [],
   npcs: [],
   interactables: [],
-  collectibles: new Set()
+  collectibles: new Set(),
+  
+  // Inventory
+  inventory: []
 };
 
 // Loading System
@@ -462,8 +647,12 @@ async function startGame() {
   // Initialize 3D Engine
   await initializeGame();
   
+  // Initialize player
+  initializePlayer();
+  
   showMessage('🏙️ Willkommen auf den Straßen von Berlin!');
   showMessage('💡 Überlebe, sammle Pfand, erkunde die Stadt!');
+  showMessage('🎒 Drücke I für Inventar, M für Karte, ESC für Menü');
 }
 
 // Message System
@@ -1200,20 +1389,23 @@ function searchTrashBin(trashBin) {
   if (roll < 0.4) {
     const pfandAmount = 0.25;
     GameState.money += pfandAmount;
+    addToInventory('🍺', 'Pfandflasche');
     showMessage(`🍺 Pfandflasche gefunden! +${pfandAmount.toFixed(2)}€`);
   } else if (roll < 0.6) {
     GameState.stats.hunger = Math.min(100, GameState.stats.hunger + 15);
+    addToInventory('🥪', 'Essensreste');
     showMessage('🥪 Essensreste gefunden! Hunger +15');
   } else if (roll < 0.7) {
     const euros = Math.random() * 2 + 0.5;
     GameState.money += euros;
+    addToInventory('💰', 'Kleingeld');
     showMessage(`💰 ${euros.toFixed(2)}€ im Müll gefunden!`);
   } else {
     showMessage('🗑️ Nichts Brauchbares gefunden...');
   }
 }
 
-// UI Functions (Placeholders)
+// UI Functions - FULL IMPLEMENTATIONS
 function toggleMap() {
   if (GameState.mapOpen) {
     closeMap();
@@ -1223,14 +1415,139 @@ function toggleMap() {
 }
 
 function openMap() {
+  // Close other UIs
+  if (GameState.menuOpen) closeMenu();
+  if (GameState.inventoryOpen) closeInventory();
+  
   GameState.mapOpen = true;
   GameState.paused = true;
-  showMessage('🗺️ Karte (Noch nicht implementiert - Drücke M zum Schließen)');
+  document.getElementById('mapUI').style.display = 'flex';
+  
+  if (GameState.pointerLocked && document.exitPointerLock) {
+    document.exitPointerLock();
+  }
+  
+  // Draw the map
+  drawKiezMap();
 }
 
 function closeMap() {
   GameState.mapOpen = false;
   GameState.paused = false;
+  document.getElementById('mapUI').style.display = 'none';
+}
+
+function drawKiezMap() {
+  const canvas = document.getElementById('mapCanvas');
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width;
+  const h = canvas.height;
+  const scale = 2;
+  
+  // Clear canvas
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(0, 0, w, h);
+  
+  // Grid
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 1;
+  for (let x = 0; x < w; x += 20) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, h);
+    ctx.stroke();
+  }
+  for (let y = 0; y < h; y += 20) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(w, y);
+    ctx.stroke();
+  }
+  
+  // Streets
+  ctx.fillStyle = '#444';
+  ctx.fillRect(w/2 - 8, 0, 16, h);    // Main street
+  ctx.fillRect(0, h/2 - 8, w, 16);    // Cross street
+  
+  // Buildings
+  ctx.fillStyle = '#8B5E3C';
+  GameState.buildings.forEach(building => {
+    const bx = w/2 + (building.x * scale);
+    const bz = h/2 + (building.z * scale);
+    const bw = building.w * scale;
+    const bd = building.d * scale;
+    if (bx > -bw && bx < w+bw && bz > -bd && bz < h+bd) {
+      ctx.fillRect(bx - bw/2, bz - bd/2, bw, bd);
+    }
+  });
+  
+  // Spätis (special highlight)
+  ctx.fillStyle = '#e8c547';
+  GameState.interactables.forEach(interactable => {
+    if (interactable.type === 'späti') {
+      const sx = w/2 + (interactable.position.x * scale);
+      const sz = h/2 + (interactable.position.z * scale);
+      ctx.fillRect(sx - 6, sz - 4, 12, 8);
+      
+      // Add "SPÄTI" label
+      ctx.fillStyle = '#e8c547';
+      ctx.font = '8px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('SPÄTI', sx, sz - 6);
+      ctx.fillStyle = '#e8c547';
+    }
+  });
+  
+  // Trash bins
+  ctx.fillStyle = '#666';
+  GameState.interactables.forEach(interactable => {
+    if (interactable.type === 'trashbin') {
+      const tx = w/2 + (interactable.position.x * scale);
+      const tz = h/2 + (interactable.position.z * scale);
+      ctx.beginPath();
+      ctx.arc(tx, tz, 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  });
+  
+  // NPCs
+  ctx.fillStyle = '#FF6B6B';
+  GameState.npcs.forEach(npc => {
+    const nx = w/2 + (npc.position.x * scale);
+    const nz = h/2 + (npc.position.z * scale);
+    if (nx > 0 && nx < w && nz > 0 && nz < h) {
+      ctx.beginPath();
+      ctx.arc(nx, nz, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  });
+  
+  // Player
+  ctx.fillStyle = '#00FF00';
+  const px = w/2 + (GameState.playerPosition.x * scale);
+  const pz = h/2 + (GameState.playerPosition.z * scale);
+  ctx.beginPath();
+  ctx.arc(px, pz, 4, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Player direction arrow
+  ctx.strokeStyle = '#00FF00';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(px, pz);
+  const dirX = px + Math.sin(GameState.cameraYaw) * 15;
+  const dirZ = pz - Math.cos(GameState.cameraYaw) * 15;
+  ctx.lineTo(dirX, dirZ);
+  ctx.stroke();
+  
+  // Legend
+  ctx.fillStyle = '#ccc';
+  ctx.font = '10px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('🟢 Du', 10, 20);
+  ctx.fillText('🔴 NPCs', 10, 35);
+  ctx.fillText('🟡 Späti', 10, 50);
+  ctx.fillText('⚫ Müll', 10, 65);
 }
 
 function toggleInventory() {
@@ -1242,25 +1559,100 @@ function toggleInventory() {
 }
 
 function openInventory() {
+  // Close other UIs
+  if (GameState.menuOpen) closeMenu();
+  if (GameState.mapOpen) closeMap();
+  
   GameState.inventoryOpen = true;
   GameState.paused = true;
-  showMessage('🎒 Inventar (Noch nicht implementiert - Drücke I zum Schließen)');
+  document.getElementById('inventoryUI').style.display = 'flex';
+  
+  if (GameState.pointerLocked && document.exitPointerLock) {
+    document.exitPointerLock();
+  }
+  
+  // Update inventory display
+  updateInventoryDisplay();
 }
 
 function closeInventory() {
   GameState.inventoryOpen = false;
   GameState.paused = false;
+  document.getElementById('inventoryUI').style.display = 'none';
+}
+
+function updateInventoryDisplay() {
+  const grid = document.getElementById('inventoryGrid');
+  const moneyEl = document.getElementById('invMoney');
+  const weightEl = document.getElementById('invWeight');
+  const countEl = document.getElementById('invCount');
+  
+  // Update stats
+  moneyEl.textContent = GameState.money.toFixed(2) + '€';
+  weightEl.textContent = '0/50 kg'; // TODO: implement weight system
+  countEl.textContent = `${GameState.inventory.length}/12`;
+  
+  // Clear grid
+  grid.innerHTML = '';
+  
+  // Add inventory items
+  for (let i = 0; i < 12; i++) {
+    const slot = document.createElement('div');
+    slot.className = 'inventory-slot';
+    
+    if (i < GameState.inventory.length) {
+      const item = GameState.inventory[i];
+      slot.innerHTML = `
+        <div class="emoji">${item.emoji}</div>
+        <div class="name">${item.name}</div>
+      `;
+      if (item.count && item.count > 1) {
+        slot.innerHTML += `<div style="color:#e8c547;font-size:0.6rem;">${item.count}x</div>`;
+      }
+    } else {
+      slot.classList.add('empty');
+    }
+    
+    grid.appendChild(slot);
+  }
+}
+
+function addToInventory(emoji, name) {
+  // Check if item already exists
+  const existingItem = GameState.inventory.find(item => item.name === name);
+  
+  if (existingItem) {
+    existingItem.count = (existingItem.count || 1) + 1;
+  } else {
+    if (GameState.inventory.length < 12) {
+      GameState.inventory.push({ emoji, name, count: 1 });
+    } else {
+      showMessage('🎒 Inventar ist voll!');
+      return false;
+    }
+  }
+  
+  return true;
 }
 
 function openMenu() {
+  // Close other UIs
+  if (GameState.mapOpen) closeMap();
+  if (GameState.inventoryOpen) closeInventory();
+  
   GameState.menuOpen = true;
   GameState.paused = true;
-  showMessage('⚙️ Menü (Noch nicht implementiert - Drücke ESC zum Schließen)');
+  document.getElementById('menuUI').style.display = 'flex';
+  
+  if (GameState.pointerLocked && document.exitPointerLock) {
+    document.exitPointerLock();
+  }
 }
 
 function closeMenu() {
   GameState.menuOpen = false;
   GameState.paused = false;
+  document.getElementById('menuUI').style.display = 'none';
 }
 
 // Window resize handling
@@ -1276,6 +1668,24 @@ document.addEventListener('touchmove', (event) => {
     event.preventDefault();
   }
 }, { passive: false });
+
+// Menu event listeners
+document.getElementById('resumeGame').addEventListener('click', closeMenu);
+document.getElementById('restartGame').addEventListener('click', () => location.reload());
+document.getElementById('showControls').addEventListener('click', () => {
+  showMessage('🎮 STEUERUNG: WASD = Bewegung | Maus = Blick | E = Interagieren | M = Karte | I = Inventar | ESC = Menü | Shift = Sprint');
+});
+document.getElementById('showStats').addEventListener('click', () => {
+  const playTime = Math.floor(gameClock ? gameClock.getElapsedTime() / 60 : 0);
+  showMessage(`📊 STATS: Spielzeit: ${playTime}min | Tag ${GameState.gameDay} | Geld: ${GameState.money.toFixed(2)}€ | Items: ${GameState.inventory.length}`);
+});
+
+// Give player starting items
+function initializePlayer() {
+  addToInventory('📱', 'Handy');
+  addToInventory('🗝️', 'Schlüssel');
+  addToInventory('👛', 'Geldbörse');
+}
 
 // Start loading
 simulateLoading();
