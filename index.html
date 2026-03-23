@@ -299,6 +299,98 @@ body {
   text-transform: uppercase;
 }
 
+/* Story/Quest UI */
+#storyUI {
+  position: fixed;
+  top: 130px;
+  left: 20px;
+  z-index: 200;
+  background: rgba(0, 0, 0, 0.9);
+  border: 1px solid rgba(232, 197, 71, 0.4);
+  border-radius: 6px;
+  padding: 12px;
+  max-width: 300px;
+  min-width: 250px;
+}
+
+#storyUI h3 {
+  color: #e8c547;
+  font-size: clamp(0.7rem, 1.6vw, 0.8rem);
+  margin: 0 0 8px 0;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+#storyUI .level {
+  color: #ccc;
+  font-size: clamp(0.6rem, 1.4vw, 0.7rem);
+  margin-bottom: 8px;
+}
+
+#storyUI .quest-name {
+  color: #e8c547;
+  font-size: clamp(0.65rem, 1.5vw, 0.75rem);
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+
+#storyUI .quest-desc {
+  color: #aaa;
+  font-size: clamp(0.6rem, 1.3vw, 0.65rem);
+  line-height: 1.3;
+  margin-bottom: 6px;
+}
+
+#storyUI .quest-progress {
+  color: #e8c547;
+  font-size: clamp(0.6rem, 1.3vw, 0.65rem);
+  background: rgba(232, 197, 71, 0.1);
+  padding: 4px 8px;
+  border-radius: 4px;
+  border-left: 3px solid #e8c547;
+}
+
+#storyUI .quest-completed {
+  color: #4CAF50;
+  background: rgba(76, 175, 80, 0.1);
+  border-left-color: #4CAF50;
+}
+
+/* Story Notifications */
+#storyNotification {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.95);
+  border: 2px solid #e8c547;
+  border-radius: 12px;
+  padding: 20px 30px;
+  z-index: 500;
+  display: none;
+  text-align: center;
+  max-width: 400px;
+}
+
+#storyNotification h2 {
+  color: #e8c547;
+  font-size: clamp(1.1rem, 2.8vw, 1.4rem);
+  margin-bottom: 10px;
+  letter-spacing: 0.1em;
+}
+
+#storyNotification .reward {
+  color: #4CAF50;
+  font-size: clamp(0.8rem, 2vw, 1rem);
+  margin-bottom: 15px;
+}
+
+#storyNotification .continue {
+  color: #999;
+  font-size: clamp(0.6rem, 1.5vw, 0.7rem);
+  animation: pulse 2s infinite;
+}
+
 /* MAP UI */
 #mapUI {
   position: fixed;
@@ -497,6 +589,15 @@ body {
 
   <div id="messageLog"></div>
   
+  <!-- Story/Quest UI -->
+  <div id="storyUI">
+    <h3>🎯 Mission</h3>
+    <div class="level" id="playerLevel">Level 1: Straßenpenner</div>
+    <div class="quest-name" id="questName">Erste Euros</div>
+    <div class="quest-desc" id="questDesc">Sammle 5€ durch Pfandflaschen</div>
+    <div class="quest-progress" id="questProgress">0,00€ / 5,00€</div>
+  </div>
+  
   <!-- Interaction Prompt -->
   <div id="interactionPrompt">
     <span class="key">E</span><span id="interactionText">Interagieren</span>
@@ -553,6 +654,13 @@ body {
   <div class="close-hint">[ I ] oder [ ESC ] zum Schließen</div>
 </div>
 
+<!-- Story Notification -->
+<div id="storyNotification">
+  <h2 id="notificationTitle">🎉 QUEST ABGESCHLOSSEN!</h2>
+  <div class="reward" id="notificationReward">Belohnung erhalten!</div>
+  <div class="continue">Klicken zum Fortfahren</div>
+</div>
+
 <script type="module">
 // KIEZKINGS v3.0 - CLEAN REBUILD
 console.log('🎮 KIEZKINGS v3.0 BUILD STARTING...');
@@ -581,7 +689,7 @@ const GameState = {
     energy: 100
   },
   
-  money: 0,
+  money: 2.50, // Start with some change
   gameTime: 8 * 60, // Start at 8:00
   gameDay: 1,
   
@@ -606,7 +714,64 @@ const GameState = {
   collectibles: new Set(),
   
   // Inventory
-  inventory: []
+  inventory: [],
+  
+  // Story System
+  playerLevel: 1,
+  playerLevelNames: ['Straßenpenner', 'Hostel-Bewohner', 'WG-Bewohner', 'Berlin-Profi', 'Kiez-König'],
+  currentQuest: null,
+  completedQuests: [],
+  
+  // Story progress
+  storyProgress: {
+    hasSleptInHostel: false,
+    hasWGRoom: false,
+    hasOwnApartment: false,
+    ownsSpäti: false
+  },
+  
+  // Quest definitions
+  quests: [
+    {
+      id: 'first_money',
+      name: 'Erste Euros',
+      description: 'Sammle 5€ durch Pfandflaschen',
+      requirement: 'money',
+      target: 5,
+      reward: 'Snack von freundlichem Späti-Besitzer',
+      completed: false
+    },
+    {
+      id: 'hostel_money',
+      name: 'Hostel-Nacht',
+      description: 'Spare 20€ für eine Nacht im Hostel',
+      requirement: 'money',
+      target: 20,
+      reward: 'Erste richtige Nacht mit Dach überm Kopf!',
+      completed: false
+    },
+    {
+      id: 'talk_to_all_npc_types',
+      name: 'Berliner kennenlernen',
+      description: 'Sprich mit allen 5 NPC-Typen',
+      requirement: 'npc_interactions',
+      target: 5,
+      reward: 'Berlin-Insider-Wissen',
+      completed: false
+    },
+    {
+      id: 'wg_money',
+      name: 'WG-Zimmer',
+      description: 'Spare 100€ für WG-Zimmer-Kaution',
+      requirement: 'money',
+      target: 100,
+      reward: 'Endlich ein richtiges Zuhause!',
+      completed: false
+    }
+  ],
+  
+  // Interaction tracking
+  npcTypesSpokenTo: new Set()
 };
 
 // Loading System
@@ -683,9 +848,17 @@ async function startGame() {
   // Initialize player
   initializePlayer();
   
-  showMessage('🏙️ Willkommen auf den Straßen von Berlin!');
-  showMessage('💡 Überlebe, sammle Pfand, erkunde die Stadt!');
-  showMessage('🎒 Drücke I für Inventar, M für Karte, ESC für Menü');
+  showMessage('🏙️ Willkommen in Berlin! Du bist pleite und obdachlos...');
+  showMessage('💰 Sammle Pfandflaschen um zu überleben!');
+  showMessage('🎯 Folge den Missionen oben links für deine Story!');
+  
+  // Show story intro
+  setTimeout(() => {
+    showStoryNotification(
+      '📖 DEINE BERLIN STORY BEGINNT!',
+      'Vom Straßenpenner zum Kiez-König - schaffe den Aufstieg!'
+    );
+  }, 2000);
 }
 
 // Message System
@@ -1580,6 +1753,9 @@ function updateStats(deltaTime) {
   document.getElementById('warmth').textContent = Math.floor(GameState.stats.warmth);
   document.getElementById('energy').textContent = Math.floor(GameState.stats.energy);
   document.getElementById('money').textContent = GameState.money.toFixed(2) + '€';
+  
+  // Update quest progress
+  updateStoryUI();
 }
 
 function updateCamera() {
@@ -1655,6 +1831,10 @@ function findNearbyNPC() {
 }
 
 function interactWithNPC(npc) {
+  // Track NPC interaction for quest
+  const wasNew = !GameState.npcTypesSpokenTo.has(npc.type);
+  GameState.npcTypesSpokenTo.add(npc.type);
+  
   const npcDialogs = {
     tourist: [
       '🗺️ "Entschuldigung, wo ist der nächste U-Bahnhof?"',
@@ -1687,6 +1867,12 @@ function interactWithNPC(npc) {
   const randomDialog = dialogs[Math.floor(Math.random() * dialogs.length)];
   
   showMessage(`👤 ${npc.type.toUpperCase()}: ${randomDialog}`);
+  
+  // Show progress if it was a new NPC type
+  if (wasNew) {
+    showMessage(`✅ Neuer NPC-Typ kennengelernt: ${npc.type}!`);
+    updateStoryUI(); // Update quest progress
+  }
 }
 
 function findNearestInteractable() {
@@ -2012,7 +2198,124 @@ function initializePlayer() {
   addToInventory('📱', 'Handy');
   addToInventory('🗝️', 'Schlüssel');
   addToInventory('👛', 'Geldbörse');
+  
+  // Initialize first quest
+  GameState.currentQuest = GameState.quests[0];
+  updateStoryUI();
 }
+
+// Story System Functions
+function updateStoryUI() {
+  const levelElement = document.getElementById('playerLevel');
+  const questNameElement = document.getElementById('questName');
+  const questDescElement = document.getElementById('questDesc');
+  const questProgressElement = document.getElementById('questProgress');
+  
+  // Update level display
+  const levelName = GameState.playerLevelNames[GameState.playerLevel - 1] || 'Kiez-König';
+  levelElement.textContent = `Level ${GameState.playerLevel}: ${levelName}`;
+  
+  if (GameState.currentQuest) {
+    const quest = GameState.currentQuest;
+    questNameElement.textContent = quest.name;
+    questDescElement.textContent = quest.description;
+    
+    // Update progress based on quest type
+    let current = 0;
+    let target = quest.target;
+    
+    if (quest.requirement === 'money') {
+      current = GameState.money;
+      questProgressElement.textContent = `${current.toFixed(2)}€ / ${target.toFixed(2)}€`;
+    } else if (quest.requirement === 'npc_interactions') {
+      current = GameState.npcTypesSpokenTo.size;
+      questProgressElement.textContent = `${current} / ${target} NPC-Typen`;
+    }
+    
+    // Check if quest is completed
+    if (current >= target && !quest.completed) {
+      completeQuest(quest);
+    }
+    
+    // Style based on completion
+    if (quest.completed) {
+      questProgressElement.classList.add('quest-completed');
+      questProgressElement.textContent = '✅ ABGESCHLOSSEN!';
+    } else {
+      questProgressElement.classList.remove('quest-completed');
+    }
+  } else {
+    questNameElement.textContent = 'Freies Spiel';
+    questDescElement.textContent = 'Du hast alle Quests abgeschlossen! Erkunde Berlin weiter.';
+    questProgressElement.textContent = '🎉 Alles geschafft!';
+    questProgressElement.classList.add('quest-completed');
+  }
+}
+
+function completeQuest(quest) {
+  quest.completed = true;
+  GameState.completedQuests.push(quest.id);
+  
+  showStoryNotification(
+    `🎉 QUEST ABGESCHLOSSEN!`,
+    `"${quest.name}" - ${quest.reward}`
+  );
+  
+  // Give quest rewards
+  if (quest.id === 'first_money') {
+    addToInventory('🥪', 'Gratis-Snack');
+    GameState.stats.hunger = Math.min(100, GameState.stats.hunger + 30);
+  } else if (quest.id === 'hostel_money') {
+    GameState.storyProgress.hasSleptInHostel = true;
+    GameState.playerLevel = 2;
+  } else if (quest.id === 'wg_money') {
+    GameState.storyProgress.hasWGRoom = true;
+    GameState.playerLevel = 3;
+  }
+  
+  // Assign next quest
+  setTimeout(() => {
+    assignNextQuest();
+  }, 3000);
+}
+
+function assignNextQuest() {
+  // Find next uncompleted quest
+  const nextQuest = GameState.quests.find(quest => !quest.completed);
+  
+  if (nextQuest) {
+    GameState.currentQuest = nextQuest;
+    showMessage(`🎯 Neue Mission: "${nextQuest.name}"`);
+  } else {
+    GameState.currentQuest = null;
+    showMessage('🏆 Alle Quests abgeschlossen! Du bist jetzt ein echter Berliner!');
+  }
+  
+  updateStoryUI();
+}
+
+function showStoryNotification(title, reward) {
+  const notification = document.getElementById('storyNotification');
+  const titleElement = document.getElementById('notificationTitle');
+  const rewardElement = document.getElementById('notificationReward');
+  
+  titleElement.textContent = title;
+  rewardElement.textContent = reward;
+  
+  notification.style.display = 'block';
+  
+  // Auto-hide after 3 seconds or on click
+  setTimeout(() => {
+    if (notification.style.display === 'block') {
+      notification.style.display = 'none';
+    }
+  }, 4000);
+}
+
+// Click to dismiss story notification
+document.getElementById('storyNotification').addEventListener('click', () => {
+  document.getElementById('storyNotification').style.display = 'none';
+});
 
 // Start loading
 simulateLoading();
