@@ -1063,6 +1063,8 @@ const GameState = {
   isInCombat: false,
   combatTarget: null,
   lastAttackTime: 0,
+  isDead: false,
+  lastDamageTime: 0,
   
   // Unlock System
   pickpocketUnlocked: false,
@@ -1540,6 +1542,27 @@ function spawnPoliceNPC(x, z) {
   group.position.set(x, 0, z);
   scene.add(group);
   
+  // Add visual indicator for fighters
+  if (isFighter) {
+    // Add red glow/aura around fighter NPCs
+    const glowGeometry = new THREE.RingGeometry(0.8, 1.0, 16);
+    const glowMaterial = new THREE.MeshBasicMaterial({ 
+      color: '#FF4444', 
+      transparent: true, 
+      opacity: 0.3,
+      side: THREE.DoubleSide
+    });
+    const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+    glow.rotation.x = -Math.PI / 2;
+    glow.position.y = 0.01;
+    group.add(glow);
+    
+    // Store fighter indicator
+    group.userData.fighterGlow = glow;
+    
+    console.log(`⚔️ Fighter ${type} spawned with ${baseHealth} HP and ${attackDamage.toFixed(1)} damage`);
+  }
+  
   const policeNPC = {
     group,
     position: new THREE.Vector3(x, 0, z),
@@ -1705,6 +1728,19 @@ function createBerlinNPC(x, z, type) {
   group.position.set(x, 0, z);
   scene.add(group);
   
+  // Determine fighter status based on NPC type
+  const fightBackChances = {
+    'punk': 0.6,      // 60% chance punks fight back
+    'berliner': 0.4,  // 40% chance berliners fight back  
+    'hipster': 0.2,   // 20% chance hipsters fight back
+    'tourist': 0.1,   // 10% chance tourists fight back
+    'oma': 0.05       // 5% chance omas fight back (but they hit HARD)
+  };
+  
+  const isFighter = Math.random() < (fightBackChances[type] || 0.2);
+  const baseHealth = isFighter ? (150 + Math.random() * 50) : 100; // 150-200 HP for fighters
+  const attackDamage = isFighter ? (15 + Math.random() * 20) : 0;  // 15-35 damage for fighters
+  
   GameState.npcs.push({
     group,
     position: new THREE.Vector3(x, 0, z),
@@ -1719,15 +1755,15 @@ function createBerlinNPC(x, z, type) {
     isWaiting: false,
     waitTime: 0,
     targetPosition: null,
-    behaviorState: 'wandering', // wandering, waiting, targeted
+    behaviorState: 'wandering', // wandering, waiting, targeted, fighting
     // Animation state
     walkCycle: 0,
     isMoving: false,
     lastPosition: new THREE.Vector3(x, 0, z),
     
-    // Combat state
-    health: 100,
-    maxHealth: 100,
+    // Combat state  
+    health: baseHealth,
+    maxHealth: baseHealth,
     isKnockedOut: false,
     isBeingAttacked: false,
     fleeingFrom: null,
@@ -1736,7 +1772,14 @@ function createBerlinNPC(x, z, type) {
     respawnTimer: 0,
     originalPosition: new THREE.Vector3(x, 0, z),
     fleeSpeed: Math.random() > 0.5 ? 2.5 : 1.2, // Random flee speed: fast or slow
-    canBePickpocketed: true
+    canBePickpocketed: true,
+    
+    // Fighter system
+    isFighter: isFighter,
+    fightBackChance: fightBackChances[type] || 0.2,
+    attackDamage: attackDamage,
+    lastAttackTime: 0,
+    isAttacking: false
   });
   
   console.log(`👤 ${type} NPC spawned at (${x}, ${z})`);
@@ -1866,6 +1909,11 @@ function handleClick(event) {
 function performAttack(npc) {
   const currentTime = Date.now();
   
+  // Don't attack if player is dead
+  if (GameState.isDead) {
+    return;
+  }
+  
   // Attack cooldown check (prevent spam clicking)
   if (currentTime - GameState.lastAttackTime < 500) {
     return; // 0.5 second cooldown between attacks
@@ -1905,21 +1953,40 @@ function performAttack(npc) {
     // Increase wanted level for knockout
     increaseWantedLevel(2);
   } else {
-    // NPC starts fleeing with variable speed
-    npc.behaviorState = 'fleeing';
-    npc.fleeingFrom = GameState.playerPosition.clone();
-    npc.nextTargetTime = Math.random() * 10 + 10; // Flee for 10-20 seconds
-    
-    const hitMessages = [
-      `👊 ${npc.type} getroffen! ${npc.fleeSpeed > 2 ? 'Rennt' : 'Flüchtet'} weg!`,
-      `💥 Schlag gelandet! ${Math.ceil((npc.health / npc.maxHealth) * 100)}% HP übrig`,
-      `🥊 Hit! ${npc.type} ${npc.fleeSpeed > 2 ? 'sprintet' : 'geht'} weg!`
-    ];
-    
-    showMessage(hitMessages[Math.floor(Math.random() * hitMessages.length)]);
-    
-    // Small wanted level increase for assault
-    increaseWantedLevel(1);
+    // Determine if NPC fights back or flees
+    if (npc.isFighter && Math.random() < 0.8) { // 80% chance fighters fight back
+      // NPC fights back!
+      npc.behaviorState = 'fighting';
+      npc.nextTargetTime = Math.random() * 15 + 10; // Fight for 10-25 seconds
+      
+      const fightMessages = [
+        `⚔️ ${npc.type} schlägt zurück! Das wird ein Kampf!`,
+        `💀 ${npc.type} ist ein Fighter! ${Math.ceil((npc.health / npc.maxHealth) * 100)}% HP übrig`,
+        `🥊 ${npc.type} weicht nicht zurück! Vorsicht!`
+      ];
+      
+      showMessage(fightMessages[Math.floor(Math.random() * fightMessages.length)]);
+      
+      // Slightly higher wanted level for fighting
+      increaseWantedLevel(1);
+      
+    } else {
+      // NPC starts fleeing with variable speed
+      npc.behaviorState = 'fleeing';
+      npc.fleeingFrom = GameState.playerPosition.clone();
+      npc.nextTargetTime = Math.random() * 10 + 10; // Flee for 10-20 seconds
+      
+      const hitMessages = [
+        `👊 ${npc.type} getroffen! ${npc.fleeSpeed > 2 ? 'Rennt' : 'Flüchtet'} weg!`,
+        `💥 Schlag gelandet! ${Math.ceil((npc.health / npc.maxHealth) * 100)}% HP übrig`,
+        `🥊 Hit! ${npc.type} ${npc.fleeSpeed > 2 ? 'sprintet' : 'geht'} weg!`
+      ];
+      
+      showMessage(hitMessages[Math.floor(Math.random() * hitMessages.length)]);
+      
+      // Small wanted level increase for assault
+      increaseWantedLevel(1);
+    }
   }
 }
 
@@ -2003,6 +2070,8 @@ function respawnNPC(npc) {
   npc.canBePickpocketed = true;
   npc.behaviorState = 'wandering';
   npc.nextTargetTime = Math.random() * 5 + 2;
+  npc.lastAttackTime = 0;
+  npc.isAttacking = false;
   
   // Reset visual state
   npc.group.rotation.z = 0;
@@ -2023,6 +2092,118 @@ function respawnNPC(npc) {
   npc.group.position.set(npc.position.x, 0, npc.position.z);
   
   showMessage(`👤 Ein neuer ${npc.type} ist im Kiez aufgetaucht!`);
+}
+
+function attackPlayer(npc) {
+  if (GameState.isDead) return;
+  
+  const damage = npc.attackDamage + (Math.random() * 10 - 5); // ±5 damage variance
+  const actualDamage = Math.max(1, Math.floor(damage)); // Minimum 1 damage
+  
+  // Apply damage to player
+  GameState.stats.health = Math.max(0, GameState.stats.health - actualDamage);
+  GameState.lastDamageTime = Date.now();
+  
+  // Visual feedback for taking damage
+  triggerPlayerDamageFlash();
+  triggerScreenShake();
+  
+  // Damage messages
+  const damageMessages = [
+    `💥 ${npc.type} schlägt dich! -${actualDamage} HP`,
+    `🥊 Treffer von ${npc.type}! ${actualDamage} Schaden`,
+    `💢 ${npc.type} erwischt dich! -${actualDamage} HP`
+  ];
+  
+  showMessage(damageMessages[Math.floor(Math.random() * damageMessages.length)]);
+  
+  // Check if player died
+  if (GameState.stats.health <= 0) {
+    playerDeath();
+  }
+}
+
+function triggerPlayerDamageFlash() {
+  const flash = document.getElementById('attackFlash');
+  flash.style.display = 'block';
+  flash.style.background = 'rgba(255, 0, 0, 0.5)'; // More intense red for damage
+  flash.style.animation = 'attackFlash 0.4s ease-out';
+  
+  setTimeout(() => {
+    flash.style.display = 'none';
+    flash.style.animation = '';
+    flash.style.background = 'rgba(255, 0, 0, 0)';
+  }, 400);
+}
+
+function triggerScreenShake() {
+  const canvas = renderer.domElement;
+  canvas.style.animation = 'screenPunch 0.5s ease-out';
+  
+  setTimeout(() => {
+    canvas.style.animation = '';
+  }, 500);
+}
+
+function playerDeath() {
+  GameState.isDead = true;
+  GameState.stats.health = 0;
+  
+  // Stop any ongoing actions
+  if (GameState.isBegging) {
+    stopBegging();
+  }
+  
+  // Show death message
+  showMessage('💀 DU BIST GESTORBEN! Respawn in 3 Sekunden...');
+  showMessage('⚰️ Alles Geld verloren! Zurück zum Start!');
+  
+  // Death consequences (similar to arrest but less severe)
+  GameState.money = Math.max(2.50, GameState.money * 0.3); // Keep 30% of money
+  
+  // Remove some stolen goods
+  GameState.inventory = GameState.inventory.filter(item => 
+    Math.random() > 0.5 || !['Diebesgut', 'Raubgut'].includes(item.name)
+  );
+  
+  // Reset player position after delay
+  setTimeout(() => {
+    respawnPlayer();
+  }, 3000);
+}
+
+function respawnPlayer() {
+  // Reset player state
+  GameState.stats.health = 100;
+  GameState.stats.hunger = Math.max(50, GameState.stats.hunger);
+  GameState.stats.energy = Math.max(30, GameState.stats.energy);
+  GameState.stats.warmth = Math.max(60, GameState.stats.warmth);
+  
+  // Reset position to spawn
+  GameState.playerPosition.set(0, 1.7, 0);
+  GameState.playerVelocity.set(0, 0, 0);
+  
+  // Reset wanted level (you "escaped" while unconscious)
+  GameState.wantedLevel = Math.max(0, GameState.wantedLevel - 2);
+  updateWantedDisplay();
+  
+  if (GameState.wantedLevel === 0) {
+    document.getElementById('wantedLevel').style.display = 'none';
+  }
+  
+  // Clear combat states for all NPCs
+  GameState.npcs.forEach(npc => {
+    if (npc.behaviorState === 'fighting') {
+      npc.behaviorState = 'wandering';
+      npc.nextTargetTime = Math.random() * 5 + 2;
+      npc.isBeingAttacked = false;
+    }
+  });
+  
+  GameState.isDead = false;
+  
+  showMessage('🔄 Du bist wieder da! Sei vorsichtiger...');
+  showMessage(`💰 Noch ${GameState.money.toFixed(2)}€ übrig`);
 }
 
 function onPointerLockChange() {
@@ -2247,18 +2428,29 @@ function updateInteractionPrompts() {
     }
   } else if (nearbyNPCData && nearbyNPCData.distance <= 3) {
     promptElement.style.display = 'block';
-    if (nearbyNPCData.npc.isKnockedOut) {
-      textElement.textContent = `${nearbyNPCData.npc.type} - Crime-Optionen`;
+    const npc = nearbyNPCData.npc;
+    const fighterTag = npc.isFighter ? ' ⚔️' : '';
+    
+    if (npc.isKnockedOut) {
+      textElement.textContent = `${npc.type}${fighterTag} - Crime-Optionen`;
     } else {
-      textElement.textContent = `${nearbyNPCData.npc.type} - Interagieren`;
+      textElement.textContent = `${npc.type}${fighterTag} - Interagieren`;
     }
     promptElement.style.opacity = '1';
+    
+    // Color prompt based on fighter status
+    if (npc.isFighter && !npc.isKnockedOut) {
+      promptElement.style.borderColor = '#FF4444';
+    } else {
+      promptElement.style.borderColor = '#e8c547';
+    }
   } else if (nearbyNPCData && nearbyNPCData.distance <= 4) {
     // Show attack prompt if close enough to attack but not interact
     promptElement.style.display = 'block';
-    textElement.textContent = `${nearbyNPCData.npc.type} - Klick/Hold zum Angreifen`;
+    const fighterWarning = nearbyNPCData.npc.isFighter ? ' ⚔️ VORSICHT!' : '';
+    textElement.textContent = `${nearbyNPCData.npc.type} - Angreifen${fighterWarning}`;
     promptElement.style.opacity = '0.8';
-    promptElement.style.borderColor = '#FF6B6B';
+    promptElement.style.borderColor = nearbyNPCData.npc.isFighter ? '#FF4444' : '#FF6B6B';
   } else {
     promptElement.style.display = 'none';
     promptElement.style.borderColor = '#e8c547'; // Reset border color
@@ -2266,8 +2458,8 @@ function updateInteractionPrompts() {
 }
 
 function updateMovement(deltaTime) {
-  // Don't move while begging
-  if (GameState.isBegging) {
+  // Don't move while begging or dead
+  if (GameState.isBegging || GameState.isDead) {
     return;
   }
   
@@ -2387,6 +2579,52 @@ function updateNPCs(deltaTime) {
         // Update group position and continue with animation
         npc.group.position.set(npc.position.x, 0, npc.position.z);
         npc.isMoving = true; // Keep animation running
+        
+        return; // Skip normal AI behavior
+      }
+    }
+    
+    // Handle fighting NPCs
+    if (npc.behaviorState === 'fighting') {
+      if (npc.nextTargetTime <= 0) {
+        // Stop fighting, go back to wandering
+        npc.behaviorState = 'wandering';
+        npc.nextTargetTime = Math.random() * 5 + 2;
+        npc.isBeingAttacked = false;
+      } else {
+        // Fight the player - move towards and attack
+        const playerDistance = npc.position.distanceTo(GameState.playerPosition);
+        
+        if (playerDistance > 3) {
+          // Move towards player
+          const fightDirection = new THREE.Vector3()
+            .subVectors(GameState.playerPosition, npc.position)
+            .normalize();
+          
+          const fightSpeed = npc.walkSpeed * 1.5; // Move faster when fighting
+          const newX = npc.position.x + fightDirection.x * fightSpeed * deltaTime;
+          const newZ = npc.position.z + fightDirection.z * fightSpeed * deltaTime;
+          
+          if (!checkNPCCollision(newX, newZ)) {
+            npc.position.x = newX;
+            npc.position.z = newZ;
+          }
+          
+          npc.isMoving = true;
+        } else {
+          // Close enough to attack player
+          npc.lastAttackTime += deltaTime;
+          
+          if (npc.lastAttackTime >= 2 + Math.random()) { // Attack every 2-3 seconds
+            attackPlayer(npc);
+            npc.lastAttackTime = 0;
+          }
+          
+          npc.isMoving = false;
+        }
+        
+        // Update group position
+        npc.group.position.set(npc.position.x, 0, npc.position.z);
         
         return; // Skip normal AI behavior
       }
@@ -2590,7 +2828,21 @@ function updateStats(deltaTime) {
   });
   
   // Update UI
-  document.getElementById('health').textContent = Math.floor(GameState.stats.health);
+  const healthElement = document.getElementById('health');
+  healthElement.textContent = Math.floor(GameState.stats.health);
+  
+  // Color health based on value
+  if (GameState.stats.health <= 20) {
+    healthElement.style.color = '#FF4444'; // Red when critical
+    healthElement.style.fontWeight = 'bold';
+  } else if (GameState.stats.health <= 50) {
+    healthElement.style.color = '#FFAA44'; // Orange when low
+    healthElement.style.fontWeight = 'normal';
+  } else {
+    healthElement.style.color = '#e8c547'; // Normal color
+    healthElement.style.fontWeight = 'normal';
+  }
+  
   document.getElementById('hunger').textContent = Math.floor(GameState.stats.hunger);
   document.getElementById('warmth').textContent = Math.floor(GameState.stats.warmth);
   document.getElementById('energy').textContent = Math.floor(GameState.stats.energy);
@@ -2613,7 +2865,7 @@ function render() {
 
 // Interaction System
 function handleInteraction() {
-  if (anyUIOpen()) return;
+  if (anyUIOpen() || GameState.isDead) return;
   
   const nearbyInteractable = findNearestInteractable();
   
@@ -2871,14 +3123,29 @@ function drawKiezMap() {
   });
   
   // NPCs
-  ctx.fillStyle = '#FF6B6B';
   GameState.npcs.forEach(npc => {
     const nx = w/2 + (npc.position.x * scale);
     const nz = h/2 + (npc.position.z * scale);
     if (nx > 0 && nx < w && nz > 0 && nz < h) {
+      // Different colors for different NPC types
+      if (npc.isFighter) {
+        ctx.fillStyle = '#FF4444'; // Red for fighters
+      } else {
+        ctx.fillStyle = '#FF6B6B'; // Pink for normal NPCs
+      }
+      
       ctx.beginPath();
-      ctx.arc(nx, nz, 3, 0, Math.PI * 2);
+      ctx.arc(nx, nz, npc.isFighter ? 4 : 3, 0, Math.PI * 2);
       ctx.fill();
+      
+      // Add border for fighters
+      if (npc.isFighter) {
+        ctx.strokeStyle = '#AA0000';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(nx, nz, 4, 0, Math.PI * 2);
+        ctx.stroke();
+      }
     }
   });
   
@@ -2943,9 +3210,10 @@ function drawKiezMap() {
   ctx.textAlign = 'left';
   ctx.fillText('🟢 Du' + (GameState.isHidden ? ' (versteckt)' : ''), 10, 20);
   ctx.fillText('🔴 NPCs', 10, 35);
-  ctx.fillText('🔴🟡 Polizei', 10, 50);
-  ctx.fillText('🟡 Späti', 10, 65);
-  ctx.fillText('⚫ Müll', 10, 80);
+  ctx.fillText('🔴⚔️ Fighter', 10, 50);
+  ctx.fillText('🔴🟡 Polizei', 10, 65);
+  ctx.fillText('🟡 Späti', 10, 80);
+  ctx.fillText('⚫ Müll', 10, 95);
 }
 
 function toggleInventory() {
