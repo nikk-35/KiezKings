@@ -1981,11 +1981,17 @@ function update() {
   if (moveVec.length() > 0) {
     moveVec.normalize();
     
-    // Rotate movement by yaw
-    const cos = Math.cos(G.yaw);
-    const sin = Math.sin(G.yaw);
+    // Rotate movement by yaw - DEBUGGING CAMERA ROTATION
+    console.log(`CAMERA YAW: ${(G.yaw * 180 / Math.PI).toFixed(0)}° | INPUT: x=${moveVec.x}, z=${moveVec.z}`);
+    
+    // TRY INVERTED YAW for correct FPS movement
+    const yaw = -G.yaw;  // INVERT camera yaw for movement calculation
+    const cos = Math.cos(yaw);
+    const sin = Math.sin(yaw);
     const rx = moveVec.x * cos - moveVec.z * sin;
     const rz = moveVec.x * sin + moveVec.z * cos;
+    
+    console.log(`ROTATION: yaw=${(G.yaw * 180 / Math.PI).toFixed(0)}° inverted=${(-G.yaw * 180 / Math.PI).toFixed(0)}° -> world(${rx.toFixed(2)}, ${rz.toFixed(2)})`);
     
     // Movement rotation works correctly
     
