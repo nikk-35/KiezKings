@@ -1957,6 +1957,11 @@ function update() {
     if (keys['KeyA'] || keys['ArrowLeft']) G.moveInput.x = -1;
     if (keys['KeyD'] || keys['ArrowRight']) G.moveInput.x = 1;
     G.sprinting = keys['ShiftLeft'] || keys['ShiftRight'];
+    
+    // DEBUG: Show input
+    if (G.moveInput.x !== 0 || G.moveInput.z !== 0) {
+      console.log(`WASD Input: x=${G.moveInput.x}, z=${G.moveInput.z}, Yaw=${(G.yaw*180/Math.PI).toFixed(0)}°`);
+    }
   }
   
   // Movement
@@ -1971,9 +1976,15 @@ function update() {
     const rx = moveVec.x * cos - moveVec.z * sin;
     const rz = moveVec.x * sin + moveVec.z * cos;
     
+    // DEBUG: Show rotation result
+    console.log(`Movement: input(${moveVec.x.toFixed(1)}, ${moveVec.z.toFixed(1)}) -> world(${rx.toFixed(1)}, ${rz.toFixed(1)})`);
+    
     const newPos = G.playerPos.clone();
     newPos.x += rx * speed * dt;
     newPos.z += rz * speed * dt;
+    
+    // DEBUG: Show position change
+    console.log(`Position: ${G.playerPos.x.toFixed(1)}, ${G.playerPos.z.toFixed(1)} -> ${newPos.x.toFixed(1)}, ${newPos.z.toFixed(1)}`);
     
     // Collision
     const col = checkCollision(newPos);
