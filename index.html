@@ -97,11 +97,23 @@ body {
 
 #gameUI {
   position: fixed;
-  top: 20px;
-  left: 20px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   z-index: 100;
   color: #e8c547;
-  font-size: 1rem;
+  font-size: 1.5rem;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.8);
+  padding: 2rem;
+  border: 2px solid #e8c547;
+  border-radius: 10px;
+  min-width: 400px;
+  display: none;
+}
+
+#gameUI.active {
+  display: block;
 }
 </style>
 </head>
@@ -163,11 +175,14 @@ document.getElementById('startScreen').addEventListener('click', () => {
   document.getElementById('startScreen').style.display = 'none';
   gameState.started = true;
   
-  document.getElementById('gameUI').innerHTML = `
-    <div>✅ KIEZKINGS v2.1 LÄDT ERFOLGREICH!</div>
-    <div>🔧 Clean build ohne JavaScript errors</div>
-    <div>🎮 Klicke für erweiterte Version</div>
+  const gameUI = document.getElementById('gameUI');
+  gameUI.innerHTML = `
+    <div style="margin-bottom: 1rem;">✅ KIEZKINGS v2.1 LÄDT ERFOLGREICH!</div>
+    <div style="margin-bottom: 1rem;">🔧 Clean build ohne JavaScript errors</div>
+    <div style="margin-bottom: 1rem;">🎮 Bereit für vollständige Version</div>
+    <button onclick="location.reload()" style="background: #e8c547; color: #000; border: none; padding: 10px 20px; font-size: 1rem; cursor: pointer; border-radius: 5px;">🔄 Neuladen</button>
   `;
+  gameUI.classList.add('active');
   
   console.log('✅ Clean version loaded successfully!');
   console.log('🎯 No duplicate variable errors!');
