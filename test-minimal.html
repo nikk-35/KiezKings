@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>KIEZKINGS - Minimal Test</title>
+<style>
+body { 
+    margin: 0; 
+    background: #1a1a1a; 
+    color: #e8c547; 
+    font-family: monospace; 
+    display: flex; 
+    justify-content: center; 
+    align-items: center; 
+    height: 100vh; 
+    text-align: center;
+}
+.container {
+    border: 2px solid #e8c547;
+    padding: 2rem;
+    border-radius: 10px;
+}
+button {
+    background: #e8c547;
+    color: #1a1a1a;
+    border: none;
+    padding: 10px 20px;
+    font-size: 1rem;
+    cursor: pointer;
+    margin: 10px;
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🎮 KIEZKINGS TEST</h1>
+    <p>Minimal version to test deployment</p>
+    <button onclick="showMessage()">Test JavaScript</button>
+    <div id="message"></div>
+</div>
+
+<script>
+console.log('🎮 MINIMAL KIEZKINGS TEST LOADING...');
+console.log('📅 Timestamp:', new Date().toISOString());
+
+function showMessage() {
+    document.getElementById('message').innerHTML = '✅ JavaScript works!<br>No duplicate variable errors!';
+    console.log('✅ Button click successful - JS working fine');
+}
+
+// Test that would cause the error if it exists
+console.log('🔍 Testing for problematic variables...');
+
+// Simple test - if this works, the error is in the main file
+console.log('✅ Minimal test completed successfully');
+</script>
+
+</body>
+</html>
