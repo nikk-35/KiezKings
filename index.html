@@ -257,17 +257,68 @@ function makeCanvas(w, h) {
   return { canvas: c, ctx: c.getContext('2d') };
 }
 
-function brickTexture(w = 256, h = 256, baseColor = '#8B4513') {
+function berlinBuildingTexture(w = 256, h = 256, baseColor = '#8B4513') {
   const { canvas, ctx } = makeCanvas(w, h);
-  // Base color with variation
+  
+  // Base building color
   ctx.fillStyle = baseColor;
   ctx.fillRect(0, 0, w, h);
   
-  const brickH = h / 8;
-  const brickW = w / 4;
-  const mortarW = 3;
+  // Add Berlin-style windows (every floor)
+  const floors = 5;
+  const floorHeight = h / floors;
+  const windowW = 30;
+  const windowH = 40;
   
-  for (let row = 0; row < 8; row++) {
+  for (let floor = 0; floor < floors; floor++) {
+    const y = floor * floorHeight + 20;
+    
+    // 2-3 windows per floor
+    for (let win = 0; win < 2; win++) {
+      const x = 40 + win * (windowW + 50);
+      
+      // Window frame (dark)
+      ctx.fillStyle = '#2c2c2c';
+      ctx.fillRect(x - 2, y - 2, windowW + 4, windowH + 4);
+      
+      // Window glass (light reflection)
+      const gradient = ctx.createLinearGradient(x, y, x + windowW, y + windowH);
+      gradient.addColorStop(0, '#87CEEB');
+      gradient.addColorStop(0.5, '#4682B4');
+      gradient.addColorStop(1, '#1e3a5f');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(x, y, windowW, windowH);
+      
+      // Window cross (muntins)
+      ctx.fillStyle = '#444';
+      ctx.fillRect(x + windowW/2 - 1, y, 2, windowH);
+      ctx.fillRect(x, y + windowH/2 - 1, windowW, 2);
+      
+      // Random window details (lights, blinds)
+      if (Math.random() > 0.6) {
+        ctx.fillStyle = '#FFFF88';
+        ctx.fillRect(x + 2, y + 2, windowW - 4, windowH/2 - 2);
+      }
+    }
+  }
+  
+  // Add building details (pipes, AC units, balconies)
+  if (Math.random() > 0.5) {
+    // Balcony
+    ctx.fillStyle = '#666';
+    ctx.fillRect(35, h/2 + 20, 50, 8);
+    ctx.fillStyle = '#555';
+    for (let i = 0; i < 5; i++) {
+      ctx.fillRect(37 + i * 10, h/2 + 15, 2, 15);
+    }
+  }
+  
+  const brickH = h / 15;
+  const brickW = w / 6;
+  const mortarW = 2;
+  
+  // Subtle brick pattern
+  for (let row = 0; row < 15; row++) {
     const offset = (row % 2) * (brickW / 2);
     for (let col = -1; col < 5; col++) {
       const x = col * brickW + offset;
@@ -417,17 +468,52 @@ function windowTexture() {
   return new THREE.CanvasTexture(canvas);
 }
 
-function spaetiSignTexture() {
-  const { canvas, ctx } = makeCanvas(256, 64);
-  ctx.fillStyle = '#1a4a1a';
-  ctx.fillRect(0, 0, 256, 64);
-  ctx.strokeStyle = '#e8c547';
-  ctx.lineWidth = 2;
-  ctx.strokeRect(4, 4, 248, 56);
-  ctx.fillStyle = '#e8c547';
-  ctx.font = 'bold 28px Courier New';
+function spaetiGraffitiTexture() {
+  const { canvas, ctx } = makeCanvas(512, 128);
+  
+  // Background wall texture
+  ctx.fillStyle = '#8B5E3C';
+  ctx.fillRect(0, 0, 512, 128);
+  
+  // Add wall wear/dirt
+  ctx.fillStyle = 'rgba(60,60,60,0.3)';
+  for (let i = 0; i < 20; i++) {
+    const x = Math.random() * 512;
+    const y = Math.random() * 128;
+    const w = Math.random() * 30 + 10;
+    const h = Math.random() * 20 + 5;
+    ctx.fillRect(x, y, w, h);
+  }
+  
+  // SPÄTI Graffiti - Berlin street style
+  ctx.save();
+  
+  // Shadow/3D effect
+  ctx.fillStyle = '#000000';
+  ctx.font = 'bold 48px Impact';
   ctx.textAlign = 'center';
-  ctx.fillText('SPÄTKAUF', 128, 42);
+  ctx.fillText('SPÄTI', 258, 72);
+  
+  // Main text - bright colors
+  const gradient = ctx.createLinearGradient(200, 20, 320, 80);
+  gradient.addColorStop(0, '#FF6B35');  // Orange
+  gradient.addColorStop(0.5, '#F7FF00'); // Yellow
+  gradient.addColorStop(1, '#FF006E');   // Pink
+  ctx.fillStyle = gradient;
+  ctx.fillText('SPÄTI', 256, 70);
+  
+  // Add spray paint outline
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 2;
+  ctx.strokeText('SPÄTI', 256, 70);
+  
+  // Additional small graffiti tags
+  ctx.font = '16px Arial';
+  ctx.fillStyle = '#FF3366';
+  ctx.fillText('24/7', 450, 100);
+  ctx.fillText('KIEZ', 60, 30);
+  
+  ctx.restore();
   return new THREE.CanvasTexture(canvas);
 }
 
@@ -514,14 +600,14 @@ scene.add(hemiLight);
 // TEXTURES
 // ============================================================
 const TEX = {
-  brick1: brickTexture(256, 256, '#8B5E3C'),
-  brick2: brickTexture(256, 256, '#7A6B5D'),
-  brick3: brickTexture(256, 256, '#9B7653'),
-  brick4: brickTexture(256, 256, '#6B4E37'),
+  brick1: berlinBuildingTexture(256, 256, '#8B5E3C'),
+  brick2: berlinBuildingTexture(256, 256, '#7A6B5D'),  
+  brick3: berlinBuildingTexture(256, 256, '#9B7653'),
+  brick4: berlinBuildingTexture(256, 256, '#6B4E37'),
   concrete: concreteTexture(),
   asphalt: asphaltTexture(),
   sidewalk: sidewalkTexture(),
-  spaeti: spaetiSignTexture(),
+  spaeti: spaetiGraffitiTexture(),
   ubahn: ubahnSignTexture(),
   door: doorTexture(),
 };
@@ -559,7 +645,7 @@ function addCollider(x, z, hw, hd, h = 5) {
   });
 }
 
-function checkCollision(pos, radius = 0.3) {
+function checkCollision(pos, radius = 0.5) {  // Increased from 0.3 to 0.5 for better wall distance
   for (const c of colliders) {
     const closestX = Math.max(c.min.x, Math.min(pos.x, c.max.x));
     const closestZ = Math.max(c.min.z, Math.min(pos.z, c.max.z));
@@ -720,22 +806,38 @@ function createBuilding(x, z, w, d, h, brickMat, side, features = {}) {
   return group;
 }
 
-// Späti store
+// Berlin Späti store with character
 function createSpaeti(x, z, side) {
   const group = new THREE.Group();
   const w = 6, d = 5, h = 3.5;
   
+  // Main building - use Berlin brick texture
   const geo = new THREE.BoxGeometry(w, h, d);
-  const mesh = new THREE.Mesh(geo, MAT.concrete);
+  const mesh = new THREE.Mesh(geo, MAT.brick1);
   mesh.position.set(x, h / 2, z);
   group.add(mesh);
   addCollider(x, z, w / 2, d / 2, h);
   
-  // Storefront glass
-  const glassMat = new THREE.MeshBasicMaterial({ color: '#1a3a2a', transparent: true, opacity: 0.7 });
+  // SPÄTI Graffiti sign on the wall  
+  const signGeo = new THREE.PlaneGeometry(4, 0.8);
+  const signMat = new THREE.MeshBasicMaterial({ 
+    map: TEX.spaeti,
+    transparent: true
+  });
+  const sign = new THREE.Mesh(signGeo, signMat);
+  const dir = side === 'left' ? 1 : -1;
+  sign.position.set(x + dir * (w / 2 + 0.02), h - 0.5, z);
+  if (dir === -1) sign.rotation.y = Math.PI;
+  group.add(sign);
+  
+  // Storefront glass with products visible
+  const glassMat = new THREE.MeshBasicMaterial({ 
+    color: '#2a4a3a', 
+    transparent: true, 
+    opacity: 0.8 
+  });
   const glassGeo = new THREE.PlaneGeometry(w - 1, 2.5);
   const glass = new THREE.Mesh(glassGeo, glassMat);
-  const dir = side === 'left' ? 1 : -1;
   glass.position.set(x + dir * (w / 2 + 0.01), 1.5, z);
   if (dir === -1) glass.rotation.y = Math.PI;
   group.add(glass);
@@ -984,37 +1086,100 @@ function createCollectible(x, z, type, id) {
   return interactable;
 }
 
-// NPC creation
+// Berlin NPC Types with character
+const NPC_STYLES = {
+  tourist: {
+    clothes: '#FF6B6B', hair: '#8B4513', accessories: 'camera',
+    name: ['Hans', 'Franz', 'Klaus'][Math.floor(Math.random() * 3)]
+  },
+  punk: { 
+    clothes: '#2C2C2C', hair: '#FF1493', accessories: 'studs',
+    name: ['Kai', 'Rex', 'Luna'][Math.floor(Math.random() * 3)]
+  },
+  hipster: {
+    clothes: '#8B7D6B', hair: '#4A4A4A', accessories: 'glasses',  
+    name: ['Mila', 'Ben', 'Zoe'][Math.floor(Math.random() * 3)]
+  },
+  oma: {
+    clothes: '#9B59B6', hair: '#D3D3D3', accessories: 'bag',
+    name: ['Gisela', 'Brunhilde', 'Ingrid'][Math.floor(Math.random() * 3)]
+  },
+  berliner: {
+    clothes: ['#34495E', '#2C3E50', '#7F8C8D'][Math.floor(Math.random() * 3)], 
+    hair: '#654321', accessories: 'none',
+    name: ['Jörg', 'Sven', 'Petra'][Math.floor(Math.random() * 3)]
+  }
+};
+
+// NPC creation with Berlin character
 function createNPC(x, z, npcType) {
   const group = new THREE.Group();
+  const style = NPC_STYLES[npcType] || NPC_STYLES.berliner;
   
-  // Body
-  const bodyGeo = new THREE.BoxGeometry(0.5, 0.8, 0.3);
-  const clothesMat = new THREE.MeshLambertMaterial({ 
-    color: ['#3a3a5a', '#4a3a2a', '#2a4a3a', '#5a3a3a'][Math.floor(Math.random() * 4)]
-  });
+  // Body - more rounded with CapsuleGeometry-like shape  
+  const bodyGeo = new THREE.CylinderGeometry(0.25, 0.3, 0.8, 8);
+  const clothesMat = new THREE.MeshLambertMaterial({ color: style.clothes });
   const body = new THREE.Mesh(bodyGeo, clothesMat);
   body.position.y = 1.1;
   group.add(body);
   
-  // Head
-  const headGeo = new THREE.BoxGeometry(0.3, 0.3, 0.3);
-  const head = new THREE.Mesh(headGeo, MAT.npcSkin);
+  // Head - more rounded
+  const headGeo = new THREE.SphereGeometry(0.18, 8, 6);
+  const skinColors = ['#FDBCB4', '#F1C27D', '#E0AC69', '#C68642'];
+  const skinMat = new THREE.MeshLambertMaterial({ 
+    color: skinColors[Math.floor(Math.random() * skinColors.length)] 
+  });
+  const head = new THREE.Mesh(headGeo, skinMat);
   head.position.y = 1.65;
   group.add(head);
   
-  // Legs
-  const legGeo = new THREE.BoxGeometry(0.18, 0.7, 0.25);
+  // Hair
+  const hairGeo = new THREE.SphereGeometry(0.19, 6, 4);
+  const hairMat = new THREE.MeshLambertMaterial({ color: style.hair });
+  const hair = new THREE.Mesh(hairGeo, hairMat);
+  hair.position.y = 1.72;
+  group.add(hair);
+  
+  // Legs - more rounded
+  const legGeo = new THREE.CylinderGeometry(0.09, 0.11, 0.7, 6);
+  const pantsMat = new THREE.MeshLambertMaterial({ color: '#2a2a3a' });
   [-0.12, 0.12].forEach(offset => {
-    const leg = new THREE.Mesh(legGeo, new THREE.MeshLambertMaterial({ color: '#2a2a3a' }));
+    const leg = new THREE.Mesh(legGeo, pantsMat);
     leg.position.set(offset, 0.35, 0);
     group.add(leg);
   });
   
-  // Hat (Berlin hipster beanie)
-  if (Math.random() > 0.4) {
+  // Berlin-style accessories
+  if (style.accessories === 'glasses') {
+    // Hipster glasses
+    const glassGeo = new THREE.RingGeometry(0.05, 0.08, 8);
+    const glassMat = new THREE.MeshLambertMaterial({ color: '#1a1a1a' });
+    const glasses = new THREE.Mesh(glassGeo, glassMat);
+    glasses.position.set(0, 1.65, 0.18);
+    group.add(glasses);
+  } else if (style.accessories === 'camera') {
+    // Tourist camera
+    const camGeo = new THREE.BoxGeometry(0.15, 0.1, 0.08);
+    const camMat = new THREE.MeshLambertMaterial({ color: '#333' });
+    const camera = new THREE.Mesh(camGeo, camMat);
+    camera.position.set(0, 1.0, 0.4);
+    group.add(camera);
+  } else if (style.accessories === 'bag') {
+    // Oma handbag
+    const bagGeo = new THREE.BoxGeometry(0.3, 0.2, 0.15);
+    const bagMat = new THREE.MeshLambertMaterial({ color: '#8B4513' });
+    const bag = new THREE.Mesh(bagGeo, bagMat);
+    bag.position.set(0.4, 1.0, 0);
+    group.add(bag);
+  }
+  
+  // Berlin beanie/hat (common in Berlin)
+  if (Math.random() > 0.6) {
     const hatGeo = new THREE.CylinderGeometry(0.16, 0.17, 0.15, 8);
-    const hatMat = new THREE.MeshLambertMaterial({ color: '#2a2a2a' });
+    const hatColors = ['#2a2a2a', '#8B4513', '#2F4F4F', '#800080'];
+    const hatMat = new THREE.MeshLambertMaterial({ 
+      color: hatColors[Math.floor(Math.random() * hatColors.length)] 
+    });
     const hat = new THREE.Mesh(hatGeo, hatMat);
     hat.position.y = 1.85;
     group.add(hat);
@@ -1958,22 +2123,7 @@ function update() {
     if (keys['KeyD'] || keys['ArrowRight']) G.moveInput.x = 1;
     G.sprinting = keys['ShiftLeft'] || keys['ShiftRight'];
     
-    // VISUAL DEBUG: Show input on screen
-    if (G.moveInput.x !== 0 || G.moveInput.z !== 0) {
-      const debugDiv = document.getElementById('debugInput') || (() => {
-        const div = document.createElement('div');
-        div.id = 'debugInput';
-        div.style.cssText = 'position:fixed;top:10px;left:10px;color:red;font-size:20px;z-index:1000;background:rgba(0,0,0,0.5);padding:5px;';
-        document.body.appendChild(div);
-        return div;
-      })();
-      const direction = G.moveInput.z < 0 ? 'FORWARD' : G.moveInput.z > 0 ? 'BACKWARD' : G.moveInput.x < 0 ? 'LEFT' : G.moveInput.x > 0 ? 'RIGHT' : '';
-      const yawDegrees = (G.yaw * 180 / Math.PI).toFixed(0);
-      debugDiv.textContent = `${direction} | YAW: ${yawDegrees}° | INPUT: x=${G.moveInput.x}, z=${G.moveInput.z} | POS: ${G.playerPos.x.toFixed(1)}, ${G.playerPos.z.toFixed(1)}`;
-    } else {
-      const debugDiv = document.getElementById('debugInput');
-      if (debugDiv) debugDiv.textContent = `NO INPUT | POS: ${G.playerPos.x.toFixed(1)}, ${G.playerPos.z.toFixed(1)}`;
-    }
+    // Movement fixed!
   }
   
   // Movement
@@ -1982,17 +2132,12 @@ function update() {
   if (moveVec.length() > 0) {
     moveVec.normalize();
     
-    // Rotate movement by yaw - DEBUGGING CAMERA ROTATION
-    console.log(`CAMERA YAW: ${(G.yaw * 180 / Math.PI).toFixed(0)}° | INPUT: x=${moveVec.x}, z=${moveVec.z}`);
-    
-    // TRY INVERTED YAW for correct FPS movement
+    // Rotate movement by camera yaw
     const yaw = -G.yaw;  // INVERT camera yaw for movement calculation
     const cos = Math.cos(yaw);
     const sin = Math.sin(yaw);
     const rx = moveVec.x * cos - moveVec.z * sin;
     const rz = moveVec.x * sin + moveVec.z * cos;
-    
-    console.log(`ROTATION: yaw=${(G.yaw * 180 / Math.PI).toFixed(0)}° inverted=${(-G.yaw * 180 / Math.PI).toFixed(0)}° -> world(${rx.toFixed(2)}, ${rz.toFixed(2)})`);
     
     // Movement rotation works correctly
     
@@ -2005,7 +2150,6 @@ function update() {
     // Collision
     const col = checkCollision(newPos);
     if (col) {
-      console.log(`COLLISION BLOCKED: pos(${newPos.x.toFixed(1)}, ${newPos.z.toFixed(1)}) blocked by wall`);
       // Slide along wall
       const pushX = newPos.x - col.closestX;
       const pushZ = newPos.z - col.closestZ;
@@ -2014,8 +2158,6 @@ function update() {
         newPos.x = col.closestX + (pushX / pushLen) * 0.31;
         newPos.z = col.closestZ + (pushZ / pushLen) * 0.31;
       }
-    } else {
-      console.log(`MOVEMENT OK: pos(${G.playerPos.x.toFixed(1)}, ${G.playerPos.z.toFixed(1)}) -> (${newPos.x.toFixed(1)}, ${newPos.z.toFixed(1)})`);
     }
     
     // Bounds
