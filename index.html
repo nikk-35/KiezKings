@@ -241,6 +241,37 @@ body {
   letter-spacing: 0.1em;
 }
 
+/* Custom Cursor System */
+#customCursor {
+  position: fixed;
+  width: 32px;
+  height: 32px;
+  pointer-events: none;
+  z-index: 10001;
+  display: none;
+  transform: translate(-50%, -50%);
+  transition: transform 0.1s ease;
+}
+
+#customCursor.crime {
+  background: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMTYiIGN5PSIxNiIgcj0iMTMiIGZpbGw9IiNGRjZCNkIiIHN0cm9rZT0iIzAwMCIgc3Ryb2tlLXdpZHRoPSIyIi8+CjxwYXRoIGQ9Ik0xMS41IDExLjVMMjAuNSAyMC41TTIwLjUgMTEuNUwxMS41IDIwLjUiIHN0cm9rZT0iIzAwMCIgc3Ryb2tlLXdpZHRoPSIyLjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8dGV4dCB4PSIxNiIgeT0iOCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iIzAwMCIgZm9udC1zaXplPSI2cHgiIGZvbnQtZmFtaWx5PSJtb25vc3BhY2UiPkNSSU1FPC90ZXh0Pgo8L3N2Zz4K') no-repeat center;
+  background-size: contain;
+}
+
+#customCursor.menu {
+  background: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTQgNEwyOCAyOE00IDI4TDI4IDQiIHN0cm9rZT0iI0U4QzU0NyIgc3Ryb2tlLXdpZHRoPSIzIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KPHN2Zz4K') no-repeat center;
+  background-size: contain;
+}
+
+/* Hide default cursor when custom cursor is active */
+.no-cursor {
+  cursor: none !important;
+}
+
+.no-cursor * {
+  cursor: none !important;
+}
+
 /* Messages */
 #messageLog {
   position: fixed;
@@ -783,6 +814,9 @@ body {
   <div id="hidingStatus">
     🫥 VERSTECKT
   </div>
+  
+  <!-- Custom Cursor -->
+  <div id="customCursor"></div>
 
   <!-- Touch Controls -->
   <div id="touchControls">
@@ -796,7 +830,7 @@ body {
 
   <!-- Desktop Controls Info -->
   <div class="desktop-info">
-    WASD: Bewegung | Maus: Blick | E: Interaktion | B: Betteln | Klick: Angriff | M: Karte | I: Inventar
+    WASD: Bewegung | Maus: Blick | E: Interaktion | B: Betteln | Klick: Angriff | M: Karte | I: Inventar | Shift+P: Police Test
   </div>
   <div class="mobile-info">
     Joystick: Bewegung | E: Interaktion | B: Betteln | Hold: Angriff | ⚡: Sprint
@@ -1116,6 +1150,9 @@ async function initializeGame() {
   
   // Setup Controls
   setupInputHandling();
+  
+  // Initialize custom cursor
+  initCustomCursor();
   
   // Start Game Loop
   startGameLoop();
@@ -1475,7 +1512,13 @@ function updatePoliceSystem(deltaTime) {
     const spawnInterval = Math.max(20 - (GameState.wantedLevel * 3), 5); // 5-20 seconds
     const maxPolice = Math.min(GameState.wantedLevel * 2, 8); // Max 8 police
     
+    // Debug logging
+    if (Math.random() < 0.01) { // Log every ~100 frames
+      console.log(`Police System: Wanted=${GameState.wantedLevel}, Timer=${GameState.policeSpawnTimer.toFixed(1)}s, Count=${GameState.policeNPCs.length}/${maxPolice}`);
+    }
+    
     if (GameState.policeSpawnTimer <= 0 && GameState.policeNPCs.length < maxPolice) {
+      console.log('🚔 SPAWNING POLICE!');
       // Spawn police at random edges of map
       const edge = Math.floor(Math.random() * 4);
       let spawnX, spawnZ;
@@ -1705,6 +1748,13 @@ function handleKeyDown(event) {
   if (event.code === 'KeyM') toggleMap();
   if (event.code === 'KeyI') toggleInventory();
   if (event.code === 'KeyB') toggleBegging();
+  
+  // Debug keys
+  if (event.code === 'KeyP' && event.shiftKey) {
+    // Shift+P = Force police spawn for testing
+    increaseWantedLevel(2);
+    showMessage('🚔 DEBUG: Wanted Level erhöht für Polizei-Test!');
+  }
   
   // ESC menu system
   if (event.code === 'Escape') {
@@ -2808,12 +2858,15 @@ function openMenu() {
   if (GameState.pointerLocked && document.exitPointerLock) {
     document.exitPointerLock();
   }
+  
+  showCustomCursor('menu'); // Show menu cursor
 }
 
 function closeMenu() {
   GameState.menuOpen = false;
   GameState.paused = false;
   document.getElementById('menuUI').style.display = 'none';
+  hideCustomCursor(); // Hide menu cursor
 }
 
 // Window resize handling
@@ -2839,7 +2892,8 @@ document.getElementById('showControls').addEventListener('click', () => {
 document.getElementById('showStats').addEventListener('click', () => {
   const playTime = Math.floor(gameClock ? gameClock.getElapsedTime() / 60 : 0);
   const wantedText = GameState.wantedLevel > 0 ? ` | Fahndung: ${GameState.wantedLevel}★` : '';
-  showMessage(`📊 STATS: Spielzeit: ${playTime}min | Tag ${GameState.gameDay} | Geld: ${GameState.money.toFixed(2)}€ | Items: ${GameState.inventory.length}${wantedText}`);
+  const policeCount = GameState.policeNPCs.length;
+  showMessage(`📊 STATS: Spielzeit: ${playTime}min | Tag ${GameState.gameDay} | Geld: ${GameState.money.toFixed(2)}€ | Items: ${GameState.inventory.length}${wantedText} | Polizei: ${policeCount}`);
 });
 
 // Crime menu event listeners
@@ -3059,11 +3113,13 @@ function showCrimeMenu(npc) {
   }
   
   menu.style.display = 'block';
+  showCustomCursor('crime'); // Show crime cursor
 }
 
 function closeCrimeMenu() {
   document.getElementById('crimeMenu').style.display = 'none';
   GameState.combatTarget = null;
+  hideCustomCursor(); // Hide crime cursor
 }
 
 function handleCrimeAction(action) {
@@ -3123,6 +3179,7 @@ function performRobbery(npc) {
 }
 
 function increaseWantedLevel(amount) {
+  const oldLevel = GameState.wantedLevel;
   GameState.wantedLevel = Math.min(5, GameState.wantedLevel + amount);
   updateWantedDisplay();
   
@@ -3130,8 +3187,16 @@ function increaseWantedLevel(amount) {
     document.getElementById('wantedLevel').style.display = 'block';
   }
   
+  // Initialize police spawn timer if this is first wanted level
+  if (oldLevel === 0 && GameState.wantedLevel > 0) {
+    GameState.policeSpawnTimer = 2; // Start spawning police in 2 seconds
+    showMessage('🚨 ACHTUNG: Polizei wurde alarmiert!');
+  }
+  
   const levelNames = ['', 'Verdächtig', 'Gesucht', 'Gefährlich', 'Hochgefährlich', 'Staatsfeind #1'];
   showMessage(`🚔 Fahndungslevel: ${levelNames[GameState.wantedLevel]}`);
+  
+  console.log(`Wanted level increased to ${GameState.wantedLevel}, police spawn timer: ${GameState.policeSpawnTimer}`);
 }
 
 function updateWantedDisplay() {
@@ -3404,6 +3469,49 @@ function decreaseWantedLevel() {
       showMessage('🕊️ Fahndung beendet - du bist wieder sicher!');
     }
   }
+}
+
+// Custom Cursor System
+let customCursorActive = false;
+let mouseX = 0, mouseY = 0;
+
+function initCustomCursor() {
+  const cursor = document.getElementById('customCursor');
+  
+  // Track mouse movement
+  document.addEventListener('mousemove', (e) => {
+    mouseX = e.clientX;
+    mouseY = e.clientY;
+    
+    if (customCursorActive) {
+      cursor.style.left = mouseX + 'px';
+      cursor.style.top = mouseY + 'px';
+    }
+  });
+}
+
+function showCustomCursor(type = 'default') {
+  if (GameState.isMobile) return; // No custom cursor on mobile
+  
+  const cursor = document.getElementById('customCursor');
+  const body = document.body;
+  
+  customCursorActive = true;
+  cursor.style.display = 'block';
+  cursor.className = type;
+  cursor.style.left = mouseX + 'px';
+  cursor.style.top = mouseY + 'px';
+  
+  body.classList.add('no-cursor');
+}
+
+function hideCustomCursor() {
+  const cursor = document.getElementById('customCursor');
+  const body = document.body;
+  
+  customCursorActive = false;
+  cursor.style.display = 'none';
+  body.classList.remove('no-cursor');
 }
 
 // Start loading
